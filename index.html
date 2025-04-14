@@ -40,28 +40,34 @@
           let githubDownloads = 0;
           let spacedockDownloads = 0;
 
-          // Fetch GitHub release data
           try {
               const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
               const githubData = await githubResponse.json();
-              githubDownloads = githubData.reduce((sum, release) =>
-                  sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
+              githubDownloads = githubData.reduce((sum, release) => {
+                  const assetCount = release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0;
+                  return sum + assetCount;
+              }, 0);
               document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
           } catch (e) {
               console.error("Error fetching GitHub data:", e);
               document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
           }
 
+          // Fetch SpaceDock data directly using the documented API endpoint.
           try {
               const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`, {
-                  mode: 'cors'
+                  mode: 'cors',
+                  headers: {
+                      'Accept': 'application/json'
+                  }
               });
               const spacedockData = await spacedockResponse.json();
+              // According to the API docs, the JSON response should include a "downloads" key.
               spacedockDownloads = spacedockData.downloads || 0;
-              document.getElementById("downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
+              document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
           } catch (e) {
               console.error("Error fetching SpaceDock data:", e);
-              document.getElementById("downloads").textContent = "SpaceDock Downloads: Error loading data";
+              document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
           }
 
           const totalDownloads = githubDownloads + spacedockDownloads;
