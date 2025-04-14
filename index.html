@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SpaceDock Scraper</title>
+  <title>SpaceDock and GitHub Download Count</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -14,16 +15,33 @@
       font-size: 1.5em;
       margin-top: 20px;
     }
+    .timeline-entry-inner {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .timeline-icon {
+      margin-right: 10px;
+    }
+    .timeline-label {
+      font-size: 1.2em;
+    }
   </style>
 </head>
 <body>
-  <h1>KerbalChecklists Download Count</h1>
-  <div id="spacedock-downloads" class="counter">Loading...</div>
+  <h1>Download Counts for Mods</h1>
+
+  <div id="mod-downloads"></div>
 
   <script>
-    async function fetchSpacedockDownloads() {
+    const modUrls = [
+      { type: 'spacedock', url: 'https://spacedock.info/mod/3855/KerbalChecklists' },
+      { type: 'github', url: 'https://github.com/username/repository' } 
+    ];
+
+    // Fetch SpaceDock Downloads
+    async function fetchSpacedockDownloads(modPageUrl) {
       const proxyUrl = 'https://corsproxy.io/?';
-      const modPageUrl = 'https://spacedock.info/mod/3855/KerbalChecklists';
       const fullUrl = proxyUrl + encodeURIComponent(modPageUrl);
 
       try {
@@ -33,19 +51,98 @@
         const match = htmlText.match(/<strong>[\s\S]*?Downloads[\s\S]*?<\/strong>\s*([0-9,]+)/i);
         const count = match ? match[1].replace(/,/g, '') : null;
 
-        if (count) {
-          document.getElementById('spacedock-downloads').textContent = `SpaceDock Downloads: ${Number(count).toLocaleString()}`;
-        } else {
-          document.getElementById('spacedock-downloads').textContent = "Downloads not found.";
-        }
+        return count ? parseInt(count, 10) : 0;
 
       } catch (err) {
         console.error("Failed to fetch SpaceDock page:", err);
-        document.getElementById('spacedock-downloads').textContent = "Error loading download count.";
+        return 0;
       }
     }
 
-    fetchSpacedockDownloads();
+    async function fetchGithubDownloads(githubRepoUrl) {
+      const apiUrl = githubRepoUrl.replace('github.com', 'api.github.com/repos') + '/releases';
+
+      try {
+        const response = await fetch(apiUrl);
+        const releases = await response.json();
+
+        let totalDownloads = 0;
+
+        releases.forEach(release => {
+          release.assets.forEach(asset => {
+            totalDownloads += asset.download_count || 0;
+          });
+        });
+
+        return totalDownloads;
+      } catch (err) {
+        console.error("Failed to fetch GitHub data:", err);
+        return 0;
+      }
+    }
+
+    async function updateModDownloads() {
+      const modDownloadsContainer = document.getElementById('mod-downloads');
+      let totalDownloads = 0;
+
+      for (const mod of modUrls) {
+        let modDownloads = 0;
+
+        if (mod.type === 'spacedock') {
+          modDownloads = await fetchSpacedockDownloads(mod.url);
+        } else if (mod.type === 'github') {
+          modDownloads = await fetchGithubDownloads(mod.url);
+        }
+
+        totalDownloads += modDownloads;
+
+        const timelineEntry = document.createElement('div');
+        timelineEntry.classList.add('timeline-entry-inner');
+
+        const icon = document.createElement('div');
+        icon.classList.add('timeline-icon');
+        icon.innerHTML = '<span class="glyphicon glyphicon-download-alt"></span>';
+
+        const label = document.createElement('div');
+        label.classList.add('timeline-label');
+        label.innerHTML = `
+          <h2>
+            <span class="text-muted">Downloads:</span>
+            ${modDownloads.toLocaleString()}
+          </h2>
+        `;
+
+        timelineEntry.appendChild(icon);
+        timelineEntry.appendChild(label);
+        modDownloadsContainer.appendChild(timelineEntry);
+      }
+
+      const totalTimelineEntry = document.createElement('div');
+      totalTimelineEntry.classList.add('timeline-entry-inner');
+
+      const totalIcon = document.createElement('div');
+      totalIcon.classList.add('timeline-icon');
+      totalIcon.innerHTML = '<span class="glyphicon glyphicon-download-alt"></span>';
+
+      const totalLabel = document.createElement('div');
+      totalLabel.classList.add('timeline-label');
+      totalLabel.innerHTML = `
+        <h2>
+          <span class="text-muted">Total Downloads:</span>
+          ${totalDownloads.toLocaleString()}
+        </h2>
+      `;
+
+      totalTimelineEntry.appendChild(totalIcon);
+      totalTimelineEntry.appendChild(totalLabel);
+      modDownloadsContainer.appendChild(totalTimelineEntry);
+    }
+
+    updateModDownloads();
   </script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 </body>
 </html>
+
