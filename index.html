@@ -1,84 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Mod Download Badge</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Download Counter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        .counter {
+            font-size: 2em;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-<script>
-const mods = {
-  KerbalChecklists: {
-    github: "averageksp/KerbalChecklists", // Replace with your actual username
-    spacedock: 3855
-  },
-  // Add more mods here like:
-  // "modname": { github: "user/repo", spacedock: ID }
-};
+    <h1>Mod Download Counter</h1>
+    <p>Live download count for your mod:</p>
+    <div id="download-counter" class="counter">
+        Loading...
+    </div>
 
-function createBadge(label, value) {
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="20">
-      <linearGradient id="b" x2="0" y2="100%">
-        <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-        <stop offset="1" stop-opacity=".1"/>
-      </linearGradient>
-      <mask id="a">
-        <rect width="160" height="20" rx="3" fill="#fff"/>
-      </mask>
-      <g mask="url(#a)">
-        <rect width="90" height="20" fill="#555"/>
-        <rect x="90" width="70" height="20" fill="#4c1"/>
-        <rect width="160" height="20" fill="url(#b)"/>
-      </g>
-      <g fill="#fff" text-anchor="middle" font-family="Verdana" font-size="11">
-        <text x="45" y="14">${label}</text>
-        <text x="125" y="14">${value}</text>
-      </g>
-    </svg>
-  `;
-}
+    <script>
+        async function fetchDownloadCounts() {
+            const modName = "KerbalChecklists";
+            const githubRepo = "averageksp/KerbalChecklists";
+            const spacedockId = 3855;
+            
+            let githubDownloads = 0;
+            let spacedockDownloads = 0;
 
-async function getDownloads(mod) {
-  if (!mods[mod]) {
-    document.body.innerHTML = "Unknown mod.";
-    return;
-  }
+            // Fetch GitHub download count
+            try {
+                const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
+                const githubData = await githubResponse.json();
+                githubDownloads = githubData.reduce((sum, release) => sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
+            } catch (e) {
+                console.log("Error fetching GitHub data:", e);
+            }
 
-  const { github, spacedock } = mods[mod];
-  let githubDl = 0, spacedockDl = 0;
+            // Fetch SpaceDock download count
+            try {
+                const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`);
+                const spacedockData = await spacedockResponse.json();
+                spacedockDownloads = spacedockData.downloads || 0;
+            } catch (e) {
+                console.log("Error fetching SpaceDock data:", e);
+            }
 
-  try {
-    const ghRes = await fetch(`https://api.github.com/repos/${github}/releases`);
-    const ghJson = await ghRes.json();
-    githubDl = ghJson.reduce((sum, r) =>
-      sum + (r.assets?.reduce((aSum, a) => aSum + a.download_count, 0) || 0), 0);
-  } catch (e) {
-    githubDl = 0;
-  }
+            const totalDownloads = githubDownloads + spacedockDownloads;
+            document.getElementById("download-counter").textContent = `Total Downloads: ${totalDownloads}`;
+        }
 
-  try {
-    const sdRes = await fetch(`https://spacedock.info/api/mod/${spacedock}`);
-    const sdJson = await sdRes.json();
-    spacedockDl = sdJson.downloads || 0;
-  } catch (e) {
-    spacedockDl = 0;
-  }
-
-  const total = githubDl + spacedockDl;
-  const svg = createBadge("downloads", total);
-  const blob = new Blob([svg], { type: "image/svg+xml" });
-
-  // Force content as image/svg+xml
-  document.write(svg);
-}
-
-const params = new URLSearchParams(window.location.search);
-const mod = params.get("mod");
-if (mod) {
-  getDownloads(mod.toLowerCase());
-} else {
-  document.body.textContent = "No mod specified.";
-}
-</script>
+        // Fetch the download counts on page load
+        fetchDownloadCounts();
+    </script>
 </body>
 </html>
