@@ -3,69 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Download Counter</title>
+  <title>SpaceDock Mods and Downloads</title>
   <style>
       body {
           font-family: Arial, sans-serif;
           text-align: center;
           padding: 50px;
       }
-      .counter {
-          font-size: 2em;
-          margin-top: 20px;
+      .mod {
+          font-size: 1.2em;
+          margin-top: 10px;
       }
   </style>
 </head>
 <body>
-  <h1>Mod Download Counter</h1>
-  <p>Live download counts for your mod:</p>
-
-  <div id="github-downloads" class="counter">
-      GitHub Downloads: Loading...
-  </div>
-
-  <div id="spacedock-downloads" class="counter">
-      SpaceDock Downloads: Loading...
-  </div>
-
-  <div id="total-downloads" class="counter">
-      Total Downloads: Loading...
-  </div>
+  <h1>Mods by averageksp</h1>
+  <div id="mod-list">Loading mods...</div>
 
   <script>
-      async function fetchDownloadCounts() {
-          const githubRepo = "averageksp/KerbalChecklists";
-          const modId = 3855;
-          
-          let githubDownloads = 0;
-          let spacedockDownloads = 0;
+    async function fetchMods() {
+      const proxyUrl = 'https://corsproxy.io/?';
+      const apiUrl = 'https://spacedock.info/api/user/averageksp';
+      const fullUrl = proxyUrl + encodeURIComponent(apiUrl);
 
-          try {
-              const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
-              const githubData = await githubResponse.json();
-              githubDownloads = githubData.reduce((sum, release) =>
-                  sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
-              document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
-          } catch (e) {
-              console.error("Error fetching GitHub data:", e);
-              document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
-          }
-          try {
-              const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${modId}`);
-              const spacedockData = await spacedockResponse.json();
-              spacedockDownloads = spacedockData.downloads || 0;
-              document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
-          } catch (e) {
-              console.error("Error fetching SpaceDock data:", e);
-              document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
-          }
+      try {
+        const response = await fetch(fullUrl);
+        const data = await response.json();
 
-          const totalDownloads = githubDownloads + spacedockDownloads;
-          document.getElementById("total-downloads").textContent = `Total Downloads: ${totalDownloads}`;
+        const modList = document.getElementById('mod-list');
+        modList.innerHTML = ''; 
+
+        let totalDownloads = 0;
+
+        data.mods.forEach(mod => {
+          const modEl = document.createElement('div');
+          modEl.className = 'mod';
+          modEl.textContent = `${mod.name}: ${mod.downloads.toLocaleString()} downloads`;
+          modList.appendChild(modEl);
+          totalDownloads += mod.downloads;
+        });
+
+        const totalEl = document.createElement('div');
+        totalEl.className = 'mod';
+        totalEl.style.marginTop = '20px';
+        totalEl.style.fontWeight = 'bold';
+        totalEl.textContent = `Total Downloads: ${totalDownloads.toLocaleString()}`;
+        modList.appendChild(totalEl);
+
+      } catch (e) {
+        console.error("Error fetching SpaceDock data:", e);
+        document.getElementById("mod-list").textContent = "Error loading mods.";
       }
+    }
 
-      fetchDownloadCounts();
+    fetchMods();
   </script>
 </body>
 </html>
-
