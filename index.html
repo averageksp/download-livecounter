@@ -88,22 +88,24 @@
       }
     }
 
-    async function fetchSpacedockDownloads(url) {
-      const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+async function fetchSpacedockDownloads(url) {
+  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
 
-      try {
-        const res = await fetch(proxy);
-        const html = await res.text();
+  try {
+    const res = await fetch(proxy);
+    const html = await res.text();
 
-        const match = html.match(/Downloads:<\/span>\s*([\d,]+)/i);
-        const count = match ? parseInt(match[1].replace(/,/g, '')) : null;
+    // Match the pattern 'Downloads: <number>' in the HTML content
+    const match = html.match(/Downloads:\s*([\d,]+)/i);
+    const count = match ? parseInt(match[1].replace(/,/g, '')) : null;
 
-        return count;
-      } catch (e) {
-        console.error(`SpaceDock Error (${url}):`, e);
-        return null;
-      }
-    }
+    return count;
+  } catch (e) {
+    console.error(`SpaceDock Error (${url}):`, e);
+    return null;
+  }
+}
+
 
     async function loadDownloads() {
       const container = document.getElementById('mod-downloads');
