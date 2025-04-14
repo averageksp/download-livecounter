@@ -50,21 +50,14 @@
               console.error("Error fetching GitHub data:", e);
               document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
           }
-
           try {
-              const spacedockResponse = await fetch('https://spacedock.info/api/download_counts', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/x-www-form-urlencoded'
-                  },
-                  body: `mod_id=${modId}`
-              });
+              const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${modId}`);
               const spacedockData = await spacedockResponse.json();
               spacedockDownloads = spacedockData.downloads || 0;
-              document.getElementById("downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
+              document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
           } catch (e) {
               console.error("Error fetching SpaceDock data:", e);
-              document.getElementById("downloads").textContent = "SpaceDock Downloads: Error loading data";
+              document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
           }
 
           const totalDownloads = githubDownloads + spacedockDownloads;
@@ -75,3 +68,4 @@
   </script>
 </body>
 </html>
+
