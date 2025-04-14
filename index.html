@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mod Download Tracker</title>
+  <title>SpaceDock Manual Downloads Parser</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
@@ -47,7 +47,7 @@
 <body>
 
   <div class="container">
-    <h1 class="mb-4">🚀 Mod Download Tracker</h1>
+    <h1 class="mb-4">🛰 Manual SpaceDock Download Counter</h1>
 
     <div id="mod-downloads"></div>
 
@@ -59,52 +59,25 @@
   </div>
 
   <script>
-    const mods = [
-      { type: 'github', url: 'https://github.com/averageksp/KerbalChecklists' },
-      { type: 'github', url: 'https://github.com/averageksp/WasdMainMenu' },
-      { type: 'spacedock', url: 'https://spacedock.info/mod/3855/KerbalChecklists' },
-      { type: 'spacedock', url: 'https://spacedock.info/mod/3846/WasdMainMenu' }
-    ];
+    const spacedockUserUrl = 'https://spacedock.info/api/user/averageksp';
 
-    async function fetchGithubDownloads(url) {
+    async function fetchSpacedockManualDownloads() {
+      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(spacedockUserUrl);
+
       try {
-        const [user, repo] = new URL(url).pathname.split('/').filter(Boolean);
-        const apiUrl = `https://api.github.com/repos/${user}/${repo}/releases`;
+        const res = await fetch(proxyUrl);
+        const rawText = await res.text();
 
-        const res = await fetch(apiUrl);
-        const data = await res.json();
-        if (!Array.isArray(data)) throw new Error("Invalid GitHub response");
+        // Match all "downloads":123 patterns
+        const matches = [...rawText.matchAll(/"downloads"\s*:\s*(\d+)/g)];
+        const downloadCounts = matches.map(m => parseInt(m[1]));
 
-        let total = 0;
-        for (const release of data) {
-          for (const asset of release.assets) {
-            total += asset.download_count || 0;
-          }
-        }
-        return total;
+        return downloadCounts;
       } catch (e) {
-        console.error(`GitHub Error (${url}):`, e);
+        console.error("Failed to fetch or parse SpaceDock data:", e);
         return null;
       }
     }
-
-async function fetchSpacedockDownloads(url) {
-  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-
-  try {
-    const res = await fetch(proxy);
-    const html = await res.text();
-
-    const match = html.match(/Downloads:\s*([\d,]+)/i);
-    const count = match ? parseInt(match[1].replace(/,/g, '')) : null;
-
-    return count;
-  } catch (e) {
-    console.error(`SpaceDock Error (${url}):`, e);
-    return null;
-  }
-}
-
 
     async function loadDownloads() {
       const container = document.getElementById('mod-downloads');
@@ -116,33 +89,28 @@ async function fetchSpacedockDownloads(url) {
       totalDiv.textContent = 'Total Downloads: Loading...';
       spinner.style.display = 'inline-block';
 
+      const downloads = await fetchSpacedockManualDownloads();
+
+      if (!downloads) {
+        container.innerHTML = `<div class="mod-card error-text">⚠️ Error loading downloads.</div>`;
+        totalDiv.textContent = 'Total Downloads: Error';
+        spinner.style.display = 'none';
+        return;
+      }
+
       let grandTotal = 0;
 
-      for (const mod of mods) {
-        let count = null;
-        if (mod.type === 'github') {
-          count = await fetchGithubDownloads(mod.url);
-        } else if (mod.type === 'spacedock') {
-          count = await fetchSpacedockDownloads(mod.url);
-        }
+      downloads.forEach((count, index) => {
+        grandTotal += count;
 
-        const modCard = document.createElement('div');
-        modCard.className = 'mod-card';
-
-        modCard.innerHTML = `
-          <div class="mod-title">${mod.type === 'github' ? '🐙 GitHub' : '🛰 SpaceDock'}:</div>
-          <div><a href="${mod.url}" target="_blank">${mod.url}</a></div>
-          <div class="${count === null ? 'error-text' : 'download-count'}">
-            ${count === null ? '⚠️ Error loading downloads' : count.toLocaleString() + ' downloads'}
-          </div>
+        const card = document.createElement('div');
+        card.className = 'mod-card';
+        card.innerHTML = `
+          <div class="mod-title">Mod ${index + 1}</div>
+          <div class="download-count">${count.toLocaleString()} downloads</div>
         `;
-
-        if (count !== null) {
-          grandTotal += count;
-        }
-
-        container.appendChild(modCard);
-      }
+        container.appendChild(card);
+      });
 
       totalDiv.textContent = `Total Downloads: ${grandTotal.toLocaleString()}`;
       spinner.style.display = 'none';
@@ -152,6 +120,9 @@ async function fetchSpacedockDownloads(url) {
 
     loadDownloads();
   </script>
+
+</body>
+</html>
 
 </body>
 </html>
