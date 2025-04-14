@@ -1,72 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Download Counter</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-        }
-        .counter {
-            font-size: 2em;
-            margin-top: 20px;
-        }
-        .section {
-            margin-top: 20px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Download Counter</title>
+  <style>
+      body {
+          font-family: Arial, sans-serif;
+          text-align: center;
+          padding: 50px;
+      }
+      .counter {
+          font-size: 2em;
+          margin-top: 20px;
+      }
+      .section {
+          margin-top: 20px;
+      }
+  </style>
 </head>
 <body>
-    <h1>Mod Download Counter</h1>
-    <p>Live download counts for your mod:</p>
+  <h1>Mod Download Counter</h1>
+  <p>Live download counts for your mod:</p>
 
-    <div id="github-downloads" class="counter">
-        GitHub Downloads: Loading...
-    </div>
+  <div id="github-downloads" class="counter">
+      GitHub Downloads: Loading...
+  </div>
 
-    <div id="spacedock-downloads" class="counter">
-        SpaceDock Downloads: Loading...
-    </div>
+  <div id="spacedock-downloads" class="counter">
+      SpaceDock Downloads: Loading...
+  </div>
 
-    <div id="total-downloads" class="counter">
-        Total Downloads: Loading...
-    </div>
+  <div id="total-downloads" class="counter">
+      Total Downloads: Loading...
+  </div>
 
-    <script>
-        async function fetchDownloadCounts() {
-            const modName = "KerbalChecklists";
-            const githubRepo = "averageksp/KerbalChecklists";
-            const spacedockId = 3855;
-            
-            let githubDownloads = 0;
-            let spacedockDownloads = 0;
+  <script>
+      async function fetchDownloadCounts() {
+          const githubRepo = "averageksp/KerbalChecklists";
+          const spacedockId = 3855;
+          
+          let githubDownloads = 0;
+          let spacedockDownloads = 0;
 
-            try {
-                const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
-                const githubData = await githubResponse.json();
-                githubDownloads = githubData.reduce((sum, release) => sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
-                document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
-            } catch (e) {
-                console.log("Error fetching GitHub data:", e);
-            }
+          try {
+              const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
+              const githubData = await githubResponse.json();
+              githubDownloads = githubData.reduce((sum, release) => 
+                  sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
+              document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
+          } catch (e) {
+              console.log("Error fetching GitHub data:", e);
+              document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
+          }
 
-            try {
-                const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`);
-                const spacedockData = await spacedockResponse.json();
-                spacedockDownloads = spacedockData.downloads || 0;
-                document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
-            } catch (e) {
-                console.log("Error fetching SpaceDock data:", e);
-            }
+          try {
+              const spacedockProxyUrl = `https://thingproxy.freeboard.io/fetch/https://spacedock.info/api/mod/${spacedockId}`;
+              const spacedockResponse = await fetch(spacedockProxyUrl);
+              // Fetch as text then parse as JSON
+              const spacedockText = await spacedockResponse.text();
+              const spacedockData = JSON.parse(spacedockText);
 
-            const totalDownloads = githubDownloads + spacedockDownloads;
-            document.getElementById("total-downloads").textContent = `Total Downloads: ${totalDownloads}`;
-        }
+              spacedockDownloads = spacedockData.downloads || 0;
+              document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
+          } catch (e) {
+              console.log("Error fetching SpaceDock data:", e);
+              document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
+          }
 
-        fetchDownloadCounts();
-    </script>
+          const totalDownloads = githubDownloads + spacedockDownloads;
+          document.getElementById("total-downloads").textContent = `Total Downloads: ${totalDownloads}`;
+      }
+
+      fetchDownloadCounts();
+  </script>
 </body>
 </html>
+
