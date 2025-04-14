@@ -62,7 +62,6 @@
                   }
               });
               const spacedockData = await spacedockResponse.json();
-              // According to the API docs, the JSON response should include a "downloads" key.
               spacedockDownloads = spacedockData.downloads || 0;
               document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
           } catch (e) {
