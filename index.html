@@ -14,13 +14,25 @@
             font-size: 2em;
             margin-top: 20px;
         }
+        .section {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Mod Download Counter</h1>
-    <p>Live download count for your mod:</p>
-    <div id="download-counter" class="counter">
-        Loading...
+    <p>Live download counts for your mod:</p>
+
+    <div id="github-downloads" class="counter">
+        GitHub Downloads: Loading...
+    </div>
+
+    <div id="spacedock-downloads" class="counter">
+        SpaceDock Downloads: Loading...
+    </div>
+
+    <div id="total-downloads" class="counter">
+        Total Downloads: Loading...
     </div>
 
     <script>
@@ -32,29 +44,28 @@
             let githubDownloads = 0;
             let spacedockDownloads = 0;
 
-            // Fetch GitHub download count
             try {
                 const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
                 const githubData = await githubResponse.json();
                 githubDownloads = githubData.reduce((sum, release) => sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
+                document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
             } catch (e) {
                 console.log("Error fetching GitHub data:", e);
             }
 
-            // Fetch SpaceDock download count
             try {
                 const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`);
                 const spacedockData = await spacedockResponse.json();
                 spacedockDownloads = spacedockData.downloads || 0;
+                document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
             } catch (e) {
                 console.log("Error fetching SpaceDock data:", e);
             }
 
             const totalDownloads = githubDownloads + spacedockDownloads;
-            document.getElementById("download-counter").textContent = `Total Downloads: ${totalDownloads}`;
+            document.getElementById("total-downloads").textContent = `Total Downloads: ${totalDownloads}`;
         }
 
-        // Fetch the download counts on page load
         fetchDownloadCounts();
     </script>
 </body>
