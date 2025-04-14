@@ -95,7 +95,6 @@ async function fetchSpacedockDownloads(url) {
     const res = await fetch(proxy);
     const html = await res.text();
 
-    // Match the pattern 'Downloads: <number>' in the HTML content
     const match = html.match(/Downloads:\s*([\d,]+)/i);
     const count = match ? parseInt(match[1].replace(/,/g, '')) : null;
 
