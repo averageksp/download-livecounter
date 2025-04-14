@@ -62,7 +62,7 @@
     const spacedockUserUrl = 'https://spacedock.info/api/user/averageksp';
 
     async function fetchSpacedockManualDownloads() {
-      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(spacedockUserUrl);
+      const proxyUrl = 'https://corsproxy.io/' + encodeURIComponent(spacedockUserUrl);
 
       try {
         const res = await fetch(proxyUrl);
