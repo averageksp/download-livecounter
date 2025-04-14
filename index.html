@@ -18,75 +18,110 @@
       font-size: 1.5em;
       margin-top: 30px;
     }
+    input, button {
+      padding: 10px;
+      font-size: 1em;
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>Mods by averageksp</h1>
+  <h1>Mod Download Counter</h1>
+
+  <div>
+    <input type="text" id="mod-input" placeholder="Enter mod name" />
+    <button onclick="addMod()">Add Mod</button>
+  </div>
 
   <div class="section-title">SpaceDock Mods</div>
   <div id="mod-list">Loading mods...</div>
 
   <div class="section-title">GitHub Downloads</div>
-  <div id="github-downloads">Loading GitHub data...</div>
+  <div id="github-downloads">Loading...</div>
 
   <div class="section-title">Total Downloads</div>
   <div id="total-downloads">Calculating...</div>
 
   <script>
-    async function fetchAllDownloads() {
-      const proxyUrl = 'https://corsproxy.io';
-      const spacedockApi = 'https://spacedock.info/api/user/averageksp';
-      const githubRepo = 'averageksp/KerbalChecklists';
+    const proxyUrl = 'https://corsproxy.io/?';
+    const browseUrl = 'https://spacedock.info/api/browse';
+    const githubRepo = 'averageksp/KerbalChecklists';
 
-      let spacedockTotal = 0;
-      let githubTotal = 0;
-      
+    let modNames = ['KerbalChecklist'];
+    let spacedockTotal = 0;
+    let githubTotal = 0;
+
+    async function fetchSpacedockMods() {
       try {
-        const response = await fetch(proxyUrl + encodeURIComponent(spacedockApi));
-        const mods = await response.json();
+        const response = await fetch(proxyUrl + encodeURIComponent(browseUrl));
+        const allMods = await response.json();
+
+        const filteredMods = allMods.filter(mod =>
+          modNames.some(name => mod.name.toLowerCase().includes(name.toLowerCase()))
+        );
 
         const modList = document.getElementById('mod-list');
-        modList.innerHTML = ''; 
+        modList.innerHTML = '';
+        spacedockTotal = 0;
 
-        mods.forEach(mod => {
-          const modEl = document.createElement('div');
-          modEl.className = 'mod';
-          modEl.textContent = `${mod.name}: ${mod.downloads.toLocaleString()} downloads`;
-          modList.appendChild(modEl);
-          spacedockTotal += mod.downloads;
-        });
+        if (filteredMods.length === 0) {
+          modList.textContent = "No matching mods found.";
+        } else {
+          filteredMods.forEach(mod => {
+            const el = document.createElement('div');
+            el.className = 'mod';
+            el.textContent = `${mod.name}: ${mod.downloads.toLocaleString()} downloads`;
+            modList.appendChild(el);
+            spacedockTotal += mod.downloads;
+          });
+        }
+
+        updateTotal();
 
       } catch (e) {
-        console.error("Error fetching SpaceDock data:", e);
+        console.error("SpaceDock error:", e);
         document.getElementById("mod-list").textContent = "Error loading SpaceDock mods.";
       }
+    }
 
-     
+    async function fetchGithubDownloads() {
       try {
-        const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
-        const releases = await githubResponse.json();
+        const response = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
+        const releases = await response.json();
 
         githubTotal = releases.reduce((sum, release) =>
           sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0)
         , 0);
 
         document.getElementById("github-downloads").textContent =
-          `GitHub Downloads: ${githubTotal.toLocaleString()}`;
+          `GitHub Downloads (${githubRepo}): ${githubTotal.toLocaleString()}`;
+
+        updateTotal();
 
       } catch (e) {
-        console.error("Error fetching GitHub data:", e);
-        document.getElementById("github-downloads").textContent =
-          "Error loading GitHub data.";
+        console.error("GitHub error:", e);
+        document.getElementById("github-downloads").textContent = "Error loading GitHub data.";
       }
-
-      // Total
-      const grandTotal = spacedockTotal + githubTotal;
-      document.getElementById("total-downloads").textContent =
-        `Total Downloads (GitHub + SpaceDock): ${grandTotal.toLocaleString()}`;
     }
 
-    fetchAllDownloads();
+    function updateTotal() {
+      const total = githubTotal + spacedockTotal;
+      document.getElementById("total-downloads").textContent =
+        `Total Downloads: ${total.toLocaleString()}`;
+    }
+
+    function addMod() {
+      const input = document.getElementById('mod-input');
+      const newMod = input.value.trim();
+      if (newMod && !modNames.includes(newMod)) {
+        modNames.push(newMod);
+        input.value = '';
+        fetchSpacedockMods();
+      }
+    }
+
+    fetchSpacedockMods();
+    fetchGithubDownloads();
   </script>
 </body>
 </html>
-
