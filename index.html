@@ -40,7 +40,6 @@
           let githubDownloads = 0;
           let spacedockDownloads = 0;
 
-          // Fetch GitHub release data (GitHub supports CORS)
           try {
               const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
               const githubData = await githubResponse.json();
@@ -62,10 +61,10 @@
               });
               const spacedockData = await spacedockResponse.json();
               spacedockDownloads = spacedockData.downloads || 0;
-              document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
+              document.getElementById("downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
           } catch (e) {
               console.error("Error fetching SpaceDock data:", e);
-              document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
+              document.getElementById("downloads").textContent = "SpaceDock Downloads: Error loading data";
           }
 
           const totalDownloads = githubDownloads + spacedockDownloads;
