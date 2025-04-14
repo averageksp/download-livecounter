@@ -1,2 +1,2 @@
 # download-livecounter
-![Downloads](https://averageksp.github.io/download-livecounter/?mod=KerbalChecklists)
+![Downloads](https://averageksp.github.io/download-livecounter/?mod=KerbalChecklists.svg)
