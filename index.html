@@ -35,31 +35,30 @@
   <script>
       async function fetchDownloadCounts() {
           const githubRepo = "averageksp/KerbalChecklists";
-          const spacedockId = 3855;
+          const modId = 3855;
           
           let githubDownloads = 0;
           let spacedockDownloads = 0;
 
+          // Fetch GitHub release data (GitHub supports CORS)
           try {
               const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
               const githubData = await githubResponse.json();
-              githubDownloads = githubData.reduce((sum, release) => {
-                  const assetCount = release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0;
-                  return sum + assetCount;
-              }, 0);
+              githubDownloads = githubData.reduce((sum, release) =>
+                  sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
               document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
           } catch (e) {
               console.error("Error fetching GitHub data:", e);
               document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
           }
 
-          // Fetch SpaceDock data directly using the documented API endpoint.
           try {
-              const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`, {
-                  mode: 'cors',
+              const spacedockResponse = await fetch('https://spacedock.info/api/download_counts', {
+                  method: 'POST',
                   headers: {
-                      'Accept': 'application/json'
-                  }
+                      'Content-Type': 'application/x-www-form-urlencoded'
+                  },
+                  body: `mod_id=${modId}`
               });
               const spacedockData = await spacedockResponse.json();
               spacedockDownloads = spacedockData.downloads || 0;
