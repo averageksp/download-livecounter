@@ -14,9 +14,6 @@
           font-size: 2em;
           margin-top: 20px;
       }
-      .section {
-          margin-top: 20px;
-      }
   </style>
 </head>
 <body>
@@ -43,28 +40,27 @@
           let githubDownloads = 0;
           let spacedockDownloads = 0;
 
+          // Fetch GitHub release data
           try {
               const githubResponse = await fetch(`https://api.github.com/repos/${githubRepo}/releases`);
               const githubData = await githubResponse.json();
-              githubDownloads = githubData.reduce((sum, release) => 
+              githubDownloads = githubData.reduce((sum, release) =>
                   sum + (release.assets?.reduce((aSum, asset) => aSum + asset.download_count, 0) || 0), 0);
               document.getElementById("github-downloads").textContent = `GitHub Downloads: ${githubDownloads}`;
           } catch (e) {
-              console.log("Error fetching GitHub data:", e);
+              console.error("Error fetching GitHub data:", e);
               document.getElementById("github-downloads").textContent = "GitHub Downloads: Error loading data";
           }
 
           try {
-              const spacedockProxyUrl = `https://thingproxy.freeboard.io/fetch/https://spacedock.info/api/mod/${spacedockId}`;
-              const spacedockResponse = await fetch(spacedockProxyUrl);
-              // Fetch as text then parse as JSON
-              const spacedockText = await spacedockResponse.text();
-              const spacedockData = JSON.parse(spacedockText);
-
+              const spacedockResponse = await fetch(`https://spacedock.info/api/mod/${spacedockId}`, {
+                  mode: 'cors'
+              });
+              const spacedockData = await spacedockResponse.json();
               spacedockDownloads = spacedockData.downloads || 0;
               document.getElementById("spacedock-downloads").textContent = `SpaceDock Downloads: ${spacedockDownloads}`;
           } catch (e) {
-              console.log("Error fetching SpaceDock data:", e);
+              console.error("Error fetching SpaceDock data:", e);
               document.getElementById("spacedock-downloads").textContent = "SpaceDock Downloads: Error loading data";
           }
 
@@ -76,4 +72,3 @@
   </script>
 </body>
 </html>
-
