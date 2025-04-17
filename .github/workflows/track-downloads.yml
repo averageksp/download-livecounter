@@ -6,10 +6,7 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'  # every day at 12:00 UTC
-  # optional: also run when download_counts.json changes upstream
-  repository_dispatch:
-    types: [download_counts_updated]
+    - cron: '0 12 * * *'
 
 jobs:
   update-history:
@@ -19,46 +16,43 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Fetch latest counts
+      - name: Fetch download_counts.json
         run: |
           curl -s \
             https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
             -o download_counts.json
 
       - name: Validate JSON
-        run: |
-          jq . download_counts.json > /dev/null
+        run: jq . download_counts.json
 
       - name: Build new entry
-        id: build
+        id: build_entry
         run: |
           TODAY=$(date +%F)
-          MODS='["KerbalChecklists","WasdMainMenu","RP-1-Checklists"]'
-          DOWNLOADS=$(jq -c '.' download_counts.json)
-          NEW=$(jq -n \
+          ENTRY=$(jq -c \
             --arg date "$TODAY" \
-            --argjson d "$DOWNLOADS" \
-            --argjson mods "$MODS" \
-            '{
-              date: $date
-            } + (reduce $mods[] as $m ({}; .[$m] = ($d[$m] // 0)))')
-          echo "::set-output name=entry::$NEW"
+            '{ date: $date,
+               KerbalChecklists: (.KerbalChecklists // 0),
+               WasdMainMenu: (.WasdMainMenu // 0),
+               "RP-1-Checklists": (.["RP-1-Checklists"] // 0)
+             }' download_counts.json)
+          echo "::set-output name=entry::$ENTRY"
 
-      - name: Update history.json
+      - name: Ensure history.json exists
         run: |
-          ENTRY="${{ steps.build.outputs.entry }}"
-          if [ -f history.json ] && [ -s history.json ]; then
-            jq --argjson e "$ENTRY" '. + [$e]' history.json > tmp.json
-          else
-            jq -n --argjson e "$ENTRY" '[ $e ]' > tmp.json
+          if [ ! -f history.json ] || [ ! -s history.json ]; then
+            echo '[]' > history.json
           fi
+
+      - name: Append to history.json
+        run: |
+          ENTRY="${{ steps.build_entry.outputs.entry }}"
+          jq --argjson e "$ENTRY" '. + [ $e ]' history.json > tmp.json
           mv tmp.json history.json
 
-      - name: Commit & Push
+      - name: Commit & Push history.json
         uses: EndBug/add-and-commit@v9
         with:
-          author_name: github-actions[bot]
-          author_email: github-actions[bot]@users.noreply.github.com
-          message: "📈 Update download history for ${{ steps.build.outputs.entry | fromJson | .date }}"
-          add: "history.json"
           token: ${{ secrets.GITHUB_TOKEN }}
+          add: history.json
+          message: "📈 Update download history for ${{ fromJson(steps.build_entry.outputs.entry).date }}"
