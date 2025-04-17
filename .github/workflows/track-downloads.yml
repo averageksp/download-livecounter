@@ -26,19 +26,20 @@ jobs:
         id: last
         run: |
           LAST=$(jq -r '.[-1].date // ""' history.json)
-          echo "last_date=$LAST" >> $GITHUB_OUTPUT
+          echo "last_date=$LAST" >> $GITHUB_ENV
 
       - name: Get upstream date
         id: upstream
         run: |
-          D=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1 \
-             | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
-          echo "upstream_date=$D" >> $GITHUB_OUTPUT
+          # Fetch the latest commit date for download_counts.json
+          DATE=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1 \
+            | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
+          echo "upstream_date=$DATE" >> $GITHUB_ENV
 
       - name: Skip if no new data
-        if: steps.upstream.outputs.upstream_date == steps.last.outputs.last_date
+        if: ${{ env.upstream_date == env.last_date }}
         run: |
-          echo "No new update (last: ${{ steps.last.outputs.last_date }})."
+          echo "No new update (last: ${{ env.last_date }})."
           exit 0
 
       - name: Fetch download_counts.json
@@ -49,7 +50,7 @@ jobs:
 
       - name: Append new entry
         run: |
-          TODAY=${{ steps.upstream.outputs.upstream_date }}
+          TODAY=${{ env.upstream_date }}
           jq --arg date "$TODAY" --slurpfile d download_counts.json '
             . += [ {
               date: $date,
@@ -67,4 +68,4 @@ jobs:
           add: history.json
           message: >-
             📈 Update download history for
-            ${{ steps.upstream.outputs.upstream_date }}
+            ${{ env.upstream_date }}
