@@ -17,7 +17,15 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Fetch CKAN download_counts.json
-        run: curl -s https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/main/download_counts.json -o download_counts.json
+        run: |
+          curl -s https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json -o download_counts.json || echo "Failed to fetch download_counts.json"
+
+      - name: Check if download_counts.json exists
+        run: |
+          if [ ! -f download_counts.json ]; then
+            echo "Error: download_counts.json was not fetched correctly!";
+            exit 1;
+          fi
 
       - name: Inspect download_counts.json
         run: |
@@ -30,7 +38,6 @@ jobs:
           MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
           TODAY=$(date +%F)
           DOWNLOADS_JSON=$(cat download_counts.json)
-          
           echo "Trying to parse JSON with jq..."
           NEW_ENTRY=$(jq -n \
             --arg date "$TODAY" \
@@ -38,9 +45,7 @@ jobs:
             '{
               date: $date
             } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($downloads[$mod] // 0)))')
-          
           echo "New Entry: $NEW_ENTRY"
-          
           if [ -f history.json ]; then
             jq --argjson new_entry "$NEW_ENTRY" '. + [$new_entry]' history.json > combined.json
           else
@@ -53,4 +58,3 @@ jobs:
         with:
           message: "📊 Update download history"
           add: "history.json"
-
