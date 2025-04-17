@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AverageKSP Mod Downloads</title>
+  <title>AverageKSP Mod Download Stats</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      background-color: #1a1f24;
+      background-color: #1b1d1f;
       color: #c9d1d9;
       font-family: "Segoe UI", sans-serif;
       text-align: center;
@@ -25,8 +25,8 @@
     }
 
     #chart-container {
-      max-width: 800px;
-      margin: 0 auto;
+      max-width: 900px;
+      margin: auto;
     }
 
     canvas {
@@ -43,94 +43,76 @@
   </style>
 </head>
 <body>
-  <h1>averageksp Mod Downloads</h1>
+  <h1>averageksp Mod Download History</h1>
   <div id="last-updated">Last updated: loading...</div>
-
   <div id="chart-container">
-    <canvas id="downloadsChart" width="800" height="400"></canvas>
+    <canvas id="downloadsChart"></canvas>
   </div>
-
-  <div id="totals">Loading download counts...</div>
+  <div id="totals">Loading totals...</div>
 
   <script>
-    const mods = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
-
-    async function fetchDownloadCounts() {
-      const jsonURL = "https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/main/download_counts.json";
-      const commitAPI = "https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1";
-
+    async function loadHistory() {
       try {
-        const [dataRes, commitRes] = await Promise.all([
-          fetch(jsonURL),
-          fetch(commitAPI)
-        ]);
+        const res = await fetch("history.json");
+        if (!res.ok) throw new Error("404");
 
-        const data = await dataRes.json();
-        const commitData = await commitRes.json();
-        const updatedAt = new Date(commitData[0].commit.committer.date);
-        document.getElementById("last-updated").textContent = "Last updated: " + updatedAt.toLocaleString();
+        const history = await res.json();
+        const labels = history.map(entry => entry.date);
+        const mods = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
 
-        const downloads = mods.map(mod => ({
-          name: mod,
-          count: data[mod] || 0
+        const datasets = mods.map(mod => ({
+          label: mod,
+          data: history.map(entry => entry[mod] || 0),
+          fill: false,
+          borderColor: mod === "KerbalChecklists" ? "#88ff88" :
+                       mod === "WasdMainMenu" ? "#4aa6ff" : "#ffa94d",
+          tension: 0.3
         }));
 
-        const total = downloads.reduce((sum, mod) => sum + mod.count, 0);
-        document.getElementById("totals").textContent = `Total Downloads: ${total.toLocaleString()}`;
+        renderChart(labels, datasets);
 
-        renderChart(downloads);
-      } catch (err) {
-        console.error("Error loading data:", err);
-        document.getElementById("totals").textContent = "Error loading data.";
+        const latest = history[history.length - 1];
+        const total = mods.reduce((sum, mod) => sum + (latest[mod] || 0), 0);
+        document.getElementById("totals").textContent = `Total Downloads: ${total.toLocaleString()}`;
+        document.getElementById("last-updated").textContent = `Last updated: ${latest.date}`;
+      } catch (e) {
+        console.error("Failed to load history:", e);
+        document.getElementById("totals").textContent = "Could not load data.";
       }
     }
 
-    function renderChart(downloads) {
-      const ctx = document.getElementById('downloadsChart').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
+    function renderChart(labels, datasets) {
+      new Chart(document.getElementById("downloadsChart"), {
+        type: 'line',
         data: {
-          labels: downloads.map(d => d.name),
-          datasets: [{
-            label: 'Downloads',
-            data: downloads.map(d => d.count),
-            backgroundColor: '#88ff88',
-            borderRadius: 5
-          }]
+          labels,
+          datasets
         },
         options: {
           responsive: true,
-          animation: {
-            duration: 1000,
-            easing: 'easeOutBounce'
-          },
           plugins: {
-            legend: { display: false }
+            legend: {
+              labels: {
+                color: "#c9d1d9"
+              }
+            }
           },
           scales: {
             y: {
-              ticks: {
-                color: '#c9d1d9'
-              },
-              grid: {
-                color: '#333'
-              },
+              ticks: { color: "#c9d1d9" },
+              grid: { color: "#333" },
               beginAtZero: true
             },
             x: {
-              ticks: {
-                color: '#c9d1d9'
-              },
-              grid: {
-                display: false
-              }
+              ticks: { color: "#c9d1d9" },
+              grid: { color: "#333" }
             }
           }
         }
       });
     }
 
-    fetchDownloadCounts();
+    loadHistory();
   </script>
 </body>
 </html>
