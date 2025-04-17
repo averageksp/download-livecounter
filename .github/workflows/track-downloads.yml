@@ -6,7 +6,7 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 * * * *'
 
 jobs:
   update-history:
@@ -16,40 +16,49 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Fetch download_counts.json
-        run: |
-          curl -s \
-            https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
-            -o download_counts.json
-
-      - name: Validate JSON
-        run: jq . download_counts.json
-
-      - name: Build new entry
-        id: build_entry
-        run: |
-          TODAY=$(date +%F)
-          ENTRY=$(jq -c --arg date "$TODAY" '
-            {
-              date: $date,
-              KerbalChecklists: (.KerbalChecklists // 0),
-              WasdMainMenu: (.WasdMainMenu // 0),
-              "RP-1-Checklists": (.["RP-1-Checklists"] // 0)
-            }
-          ' download_counts.json)
-          echo "entry=$ENTRY" >> $GITHUB_OUTPUT
-
       - name: Ensure history.json exists
         run: |
           if [ ! -f history.json ] || [ ! -s history.json ]; then
             echo '[]' > history.json
           fi
 
-      - name: Append to history.json
+      - name: Get last recorded date
+        id: last
         run: |
-          ENTRY="${{ steps.build_entry.outputs.entry }}"
-          jq --argjson e "$ENTRY" 'if type=="array" then . + [$e] else [$e] end' history.json > tmp.json
-          mv tmp.json history.json
+          LAST=$(jq -r '.[-1].date // ""' history.json)
+          echo "last_date=$LAST" >> $GITHUB_OUTPUT
+
+      - name: Get upstream date
+        id: upstream
+        run: |
+          D=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1 \
+             | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
+          echo "upstream_date=$D" >> $GITHUB_OUTPUT
+
+      - name: Skip if no new data
+        if: steps.upstream.outputs.upstream_date == steps.last.outputs.last_date
+        run: |
+          echo "No new update (last: ${{ steps.last.outputs.last_date }})."
+          exit 0
+
+      - name: Fetch download_counts.json
+        run: |
+          curl -s \
+            https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
+            -o download_counts.json
+
+      - name: Append new entry
+        run: |
+          TODAY=${{ steps.upstream.outputs.upstream_date }}
+          jq --arg date "$TODAY" --slurpfile d download_counts.json '
+            . += [ {
+              date: $date,
+              KerbalChecklists: ($d[0].KerbalChecklists // 0),
+              WasdMainMenu:    ($d[0].WasdMainMenu    // 0),
+              "RP-1-Checklists": ($d[0]["RP-1-Checklists"] // 0)
+            } ]
+          ' history.json > history.tmp.json
+          mv history.tmp.json history.json
 
       - name: Commit & Push history.json
         uses: EndBug/add-and-commit@v9
@@ -58,4 +67,4 @@ jobs:
           add: history.json
           message: >-
             📈 Update download history for
-            ${{ fromJson(steps.build_entry.outputs.entry).date }}
+            ${{ steps.upstream.outputs.upstream_date }}
