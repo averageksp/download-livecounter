@@ -1,12 +1,15 @@
-name: Track Mod Downloads
+name: 📊 Track Mod Downloads History
+
+permissions:
+  contents: write
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'
-  push:
-    paths:
-      - '.github/workflows/track-downloads.yml'
+    - cron: '0 12 * * *'  # every day at 12:00 UTC
+  # optional: also run when download_counts.json changes upstream
+  repository_dispatch:
+    types: [download_counts_updated]
 
 jobs:
   update-history:
@@ -16,41 +19,46 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Fetch CKAN download_counts.json
+      - name: Fetch latest counts
         run: |
-          curl -s https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json -o download_counts.json || echo "Failed to fetch download_counts.json"
+          curl -s \
+            https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
+            -o download_counts.json
 
-      - name: Check if download_counts.json exists
+      - name: Validate JSON
         run: |
-          if [ ! -f download_counts.json ]; then
-            echo "Error: download_counts.json was not fetched correctly!";
-            exit 1;
-          fi
+          jq . download_counts.json > /dev/null
 
-      - name: Parse and update history
+      - name: Build new entry
+        id: build
         run: |
-          MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
           TODAY=$(date +%F)
-          DOWNLOADS_JSON=$(cat download_counts.json)
-          echo "Trying to parse JSON with jq..."
-          NEW_ENTRY=$(jq -n \
+          MODS='["KerbalChecklists","WasdMainMenu","RP-1-Checklists"]'
+          DOWNLOADS=$(jq -c '.' download_counts.json)
+          NEW=$(jq -n \
             --arg date "$TODAY" \
-            --argjson downloads "$DOWNLOADS_JSON" \
+            --argjson d "$DOWNLOADS" \
+            --argjson mods "$MODS" \
             '{
               date: $date
-            } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($downloads[$mod] // 0)))')
-          echo "New Entry: $NEW_ENTRY"
-          if [ -f history.json ]; then
-            jq --argjson new_entry "$NEW_ENTRY" '. + [$new_entry]' history.json > combined.json
-          else
-            jq -n --argjson new_entry "$NEW_ENTRY" '[ $new_entry ]' > combined.json
-          fi
-          mv combined.json history.json
+            } + (reduce $mods[] as $m ({}; .[$m] = ($d[$m] // 0)))')
+          echo "::set-output name=entry::$NEW"
 
-      - name: Commit and Push
+      - name: Update history.json
+        run: |
+          ENTRY="${{ steps.build.outputs.entry }}"
+          if [ -f history.json ] && [ -s history.json ]; then
+            jq --argjson e "$ENTRY" '. + [$e]' history.json > tmp.json
+          else
+            jq -n --argjson e "$ENTRY" '[ $e ]' > tmp.json
+          fi
+          mv tmp.json history.json
+
+      - name: Commit & Push
         uses: EndBug/add-and-commit@v9
         with:
-          message: "📊 Update download history"
+          author_name: github-actions[bot]
+          author_email: github-actions[bot]@users.noreply.github.com
+          message: "📈 Update download history for ${{ steps.build.outputs.entry | fromJson | .date }}"
           add: "history.json"
           token: ${{ secrets.GITHUB_TOKEN }}
-
