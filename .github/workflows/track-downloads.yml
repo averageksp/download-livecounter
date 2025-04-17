@@ -27,12 +27,6 @@ jobs:
             exit 1;
           fi
 
-      - name: Inspect download_counts.json
-        run: |
-          cat download_counts.json
-          echo "--------------------------"
-          jq . download_counts.json
-
       - name: Parse and update history
         run: |
           MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
@@ -58,3 +52,5 @@ jobs:
         with:
           message: "📊 Update download history"
           add: "history.json"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
