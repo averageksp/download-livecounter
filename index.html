@@ -11,10 +11,9 @@
       color: #c1c1c1;
       text-align: center;
       padding: 30px;
-      margin: 0;
     }
     h1 {
-      font-size: 2.5em;
+      font-size: 3em;
       color: #ff9900;
       margin-bottom: 10px;
     }
@@ -32,21 +31,21 @@
       width: 220px;
     }
     .mod-name {
-      font-size: 1.2em;
+      font-size: 1.3em;
       color: #8bc9e8;
       margin-bottom: 8px;
     }
     .mod-downloads {
-      font-size: 1.1em;
+      font-size: 1.2em;
       color: #4cd3a3;
     }
     .total-downloads {
-      font-size: 1.8em;
+      font-size: 2em;
       margin-top: 30px;
       color: #ff6f61;
     }
     #chart-container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 40px auto;
     }
     #downloadsChart {
@@ -64,10 +63,10 @@
       background-color: #1abc9c;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 25px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 1em;
+      font-size: 1.1em;
     }
     #get-updated:hover {
       background-color: #16a085;
@@ -96,7 +95,7 @@
   <div class="total-downloads" id="total-downloads">Total: –</div>
 
   <div id="chart-container">
-    <canvas id="downloadsChart"></canvas>
+    <canvas id="downloadsChart" width="1000" height="400"></canvas>
   </div>
 
   <button id="get-updated" onclick="refreshAll()">Refresh Data</button>
@@ -107,49 +106,49 @@
     const mods = ["KerbalChecklists","WasdMainMenu","RP-1-Checklists"];
     let chartInstance = null;
 
-    async function fetchJSONUpdate() {
+    async function fetchJSONUpdated() {
       try {
-        const apiUrl = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error(`API ${res.status}`);
-        const commits = await res.json();
-        const date = new Date(commits[0].commit.committer.date);
-        document.getElementById('json-updated').textContent =
-          'JSON last updated: ' + date.toLocaleString();
-      } catch (err) {
-        console.error('Error fetching JSON update time:', err);
-        document.getElementById('json-updated').textContent =
-          'JSON last updated: unknown';
+        const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
+        const r = await fetch(api);
+        const js = await r.json();
+        const d = new Date(js[0].commit.committer.date);
+        document.getElementById('json-updated')
+          .textContent = 'JSON last updated: ' + d.toLocaleString();
+      } catch {
+        document.getElementById('json-updated')
+          .textContent = 'JSON last updated: unknown';
       }
     }
 
-    async function loadHistory(){
+    async function loadHistory() {
       document.getElementById('error-msg').style.display='none';
       try {
-        const res = await fetch('history.json');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const history = await res.json();
-        if (!Array.isArray(history) || history.length === 0) throw new Error('No history data');
+        const r = await fetch('history.json');
+        if (!r.ok) throw new Error(r.status);
+        const hist = await r.json();
+        if (!Array.isArray(hist) || hist.length===0) throw new Error('no data');
 
-        const labels = history.map(e => e.date);
+        const labels = hist.map(e=>e.date);
         const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
-        const datasets = mods.map((mod,i) => ({
-          label: mod,
-          data: history.map(e => e[mod]||0),
+        const datasets = mods.map((m,i)=>({
+          label: m,
+          data: hist.map(e=>e[m]||0),
           borderColor: colors[i],
           backgroundColor: colors[i]+'33',
-          tension: 0.3
+          tension: 0.2,
+          pointRadius: 4
         }));
 
-        const latest = history[history.length-1];
-        let total = 0;
-        mods.forEach(mod => {
-          const cnt = latest[mod] || 0;
-          total += cnt;
-          document.getElementById(`${mod}-count`).textContent = cnt.toLocaleString();
+        // update cards & total
+        const latest = hist[hist.length-1];
+        let total=0;
+        mods.forEach(m=>{
+          const c=latest[m]||0;
+          total+=c;
+          document.getElementById(m+'-count').textContent = c.toLocaleString();
         });
-        document.getElementById('total-downloads').textContent =
-          `Total: ${total.toLocaleString()}`;
+        document.getElementById('total-downloads')
+          .textContent = `Total: ${total.toLocaleString()}`;
 
         const ctx = document.getElementById('downloadsChart').getContext('2d');
         if (chartInstance) {
@@ -158,28 +157,29 @@
           chartInstance.update();
         } else {
           chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-              responsive: true,
-              plugins: { legend: { labels: { color: '#c1c1c1' } } },
-              scales: {
-                x: { ticks: { color: '#c1c1c1' }, grid: { color: '#444' } },
-                y: { ticks: { color: '#c1c1c1' }, grid: { color: '#444' }, beginAtZero: true }
+            type:'line',
+            data:{ labels, datasets },
+            options:{
+              responsive:true,
+              plugins:{
+                legend:{ labels:{ color:'#c1c1c1', font:{size:14} } }
+              },
+              scales:{
+                x:{ ticks:{ color:'#c1c1c1', font:{size:12} }, grid:{ color:'#444' } },
+                y:{ ticks:{ color:'#c1c1c1', font:{size:12} }, grid:{ color:'#444' }, beginAtZero:true }
               }
             }
           });
         }
-      } catch(err) {
-        console.error(err);
-        const e = document.getElementById('error-msg');
-        e.textContent = '⚠️ Couldn’t load history.json: '+ err.message;
-        e.style.display = 'block';
+      } catch(e) {
+        document.getElementById('error-msg').textContent =
+          '⚠️ Couldn’t load history.json: ' + e.message;
+        document.getElementById('error-msg').style.display='block';
       }
     }
 
     async function refreshAll(){
-      await Promise.all([ fetchJSONUpdate(), loadHistory() ]);
+      await Promise.all([fetchJSONUpdated(), loadHistory()]);
     }
 
     window.onload = refreshAll;
