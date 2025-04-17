@@ -3,7 +3,7 @@ name: Track Mod Downloads
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'  # Every day at noon UTC
+    - cron: '0 12 * * *'
   push:
     paths:
       - '.github/workflows/track-downloads.yml'
@@ -19,29 +19,27 @@ jobs:
       - name: Fetch CKAN download_counts.json
         run: curl -s https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/main/download_counts.json -o download_counts.json
 
+      - name: Inspect download_counts.json
+        run: |
+          cat download_counts.json
+
       - name: Parse and update history
         run: |
           MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
           TODAY=$(date +%F)
-
-          # Fetch download_counts.json and load it
           DOWNLOADS_JSON=$(cat download_counts.json)
-
-          # Construct a new entry in JSON format using jq
           NEW_ENTRY=$(jq -n \
             --arg date "$TODAY" \
             --argjson downloads "$DOWNLOADS_JSON" \
             '{
               date: $date
             } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($downloads[$mod] // 0)))')
-
-          # Append the new entry to history.json or create the file
+          echo "New Entry: $NEW_ENTRY"
           if [ -f history.json ]; then
             jq --argjson new_entry "$NEW_ENTRY" '. + [$new_entry]' history.json > combined.json
           else
             jq -n --argjson new_entry "$NEW_ENTRY" '[ $new_entry ]' > combined.json
           fi
-
           mv combined.json history.json
 
       - name: Commit and Push
