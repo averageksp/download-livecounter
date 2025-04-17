@@ -2,46 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AverageKSP Download Stats</title>
+  <title>AverageKSP Mod Downloads</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Orbitron', sans-serif;
+      background: #0b0f14;
+      color: #c0ffc0;
       text-align: center;
       padding: 2rem;
     }
-    #results {
-      font-size: 1.2em;
-      margin-bottom: 2rem;
+
+    h1 {
+      font-size: 2em;
+      color: #88ff88;
     }
+
+    .mod-list {
+      margin: 1rem auto;
+      max-width: 600px;
+    }
+
     svg text {
       font-size: 14px;
+      fill: #ffffff;
     }
-    textarea {
-      width: 100%;
-      height: 250px;
-      margin-top: 20px;
-      font-family: monospace;
-    }
+
     button {
+      background-color: #1b2e1b;
+      border: 1px solid #4CAF50;
+      color: #c0ffc0;
       padding: 10px 20px;
       font-size: 1em;
       margin-top: 20px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2e4e2e;
+    }
+
+    #embed-code {
+      background: #101820;
+      color: #aaffaa;
+      padding: 10px;
+      font-family: monospace;
+      width: 100%;
+      max-width: 600px;
+      margin: 20px auto;
+      border: 1px solid #4CAF50;
     }
   </style>
+
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>Download Stats for averageksp Mods</h1>
+  <h1>🛰️ averageksp Mod Downloads</h1>
 
-  <div id="results">Loading download counts...</div>
+  <div id="results">Loading download data from CKAN...</div>
   <svg id="chart" width="600" height="200"></svg>
 
-  <button onclick="generateSVGCode()">Get SVG</button>
-
-  <textarea id="svg-output" placeholder="SVG code will appear here..." readonly></textarea>
+  <button onclick="generateEmbedCode()">📦 Get Embed Markdown</button>
+  <div id="embed-code">Loading embed code...</div>
 
   <script>
     const mods = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
     const jsonURL = "https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json";
+    const chart = document.getElementById("chart");
+    const results = document.getElementById("results");
+    const embedCode = document.getElementById("embed-code");
 
     let svgInnerContent = "";
 
@@ -49,9 +77,6 @@
       try {
         const res = await fetch(jsonURL);
         const data = await res.json();
-
-        const chart = document.getElementById("chart");
-        const results = document.getElementById("results");
 
         let total = 0;
         let barWidth = 500 / mods.length;
@@ -65,13 +90,12 @@
         });
 
         results.innerHTML = `
-          <strong>Individual Downloads:</strong><br>
+          <strong>MODS:</strong><br>
           ${downloads.map(d => `${d.name}: ${d.count.toLocaleString()}`).join("<br>")}<br><br>
-          <strong>Total:</strong> ${total.toLocaleString()}
+          <strong>TOTAL:</strong> ${total.toLocaleString()}
         `;
 
-        // Draw bars
-        chart.setAttribute("height", 180 + mods.length * 20); // adjust if needed
+        chart.setAttribute("height", 180);
         chart.innerHTML = "";
         svgInnerContent = "";
 
@@ -85,23 +109,24 @@
             <text x="${x + barWidth / 2}" y="165" text-anchor="middle">${mod.name}</text>
             <text x="${x + barWidth / 2}" y="${y - 5}" text-anchor="middle">${mod.count}</text>
           `;
-
-          chart.innerHTML = svgInnerContent;
         });
 
+        chart.innerHTML = svgInnerContent;
+        
+        generateEmbedCode();
+
       } catch (err) {
-        console.error("Failed to fetch download data:", err);
-        document.getElementById("results").textContent = "Failed to load data.";
+        console.error("Error fetching data:", err);
+        results.innerHTML = "⚠️ Failed to load data.";
       }
     }
 
-    function generateSVGCode() {
-      const svgCode = `
-<svg width="600" height="250" xmlns="http://www.w3.org/2000/svg">
-  ${svgInnerContent}
-</svg>`.trim();
+    function generateEmbedCode() {
+      const lines = mods.map(mod => {
+        return `![${mod}](https://averageksp.github.io/download-livecounter/?mod=${mod}.svg)`;
+      });
 
-      document.getElementById("svg-output").value = svgCode;
+      embedCode.textContent = lines.join("\n");
     }
 
     fetchDownloads();
