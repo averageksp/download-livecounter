@@ -22,19 +22,25 @@ jobs:
       - name: Inspect download_counts.json
         run: |
           cat download_counts.json
+          echo "--------------------------"
+          jq . download_counts.json
 
       - name: Parse and update history
         run: |
           MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
           TODAY=$(date +%F)
           DOWNLOADS_JSON=$(cat download_counts.json)
+          
+          echo "Trying to parse JSON with jq..."
           NEW_ENTRY=$(jq -n \
             --arg date "$TODAY" \
             --argjson downloads "$DOWNLOADS_JSON" \
             '{
               date: $date
             } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($downloads[$mod] // 0)))')
+          
           echo "New Entry: $NEW_ENTRY"
+          
           if [ -f history.json ]; then
             jq --argjson new_entry "$NEW_ENTRY" '. + [$new_entry]' history.json > combined.json
           else
@@ -47,3 +53,4 @@ jobs:
         with:
           message: "📊 Update download history"
           add: "history.json"
+
