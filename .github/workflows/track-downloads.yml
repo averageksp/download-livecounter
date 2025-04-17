@@ -26,7 +26,7 @@ jobs:
         id: last
         run: |
           LAST=$(jq -r '.[-1].date // ""' history.json)
-          echo "last_date=$LAST" >> $GITHUB_ENV
+          echo "last_date=${LAST}" >> $GITHUB_ENV
 
       - name: Get upstream date
         id: upstream
@@ -34,7 +34,7 @@ jobs:
           # Fetch the latest commit date for download_counts.json
           DATE=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1 \
             | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
-          echo "upstream_date=$DATE" >> $GITHUB_ENV
+          echo "upstream_date=${DATE}" >> $GITHUB_ENV
 
       - name: Skip if no new data
         if: ${{ env.upstream_date == env.last_date }}
@@ -69,3 +69,4 @@ jobs:
           message: >-
             📈 Update download history for
             ${{ env.upstream_date }}
+
