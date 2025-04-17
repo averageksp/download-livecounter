@@ -36,7 +36,7 @@ jobs:
                WasdMainMenu: (.WasdMainMenu // 0),
                "RP-1-Checklists": (.["RP-1-Checklists"] // 0)
              }' download_counts.json)
-          echo "::set-output name=entry::$ENTRY"
+          echo "entry=$ENTRY" >> $GITHUB_OUTPUT
 
       - name: Ensure history.json exists
         run: |
@@ -56,3 +56,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           add: history.json
           message: "📈 Update download history for ${{ fromJson(steps.build_entry.outputs.entry).date }}"
+
