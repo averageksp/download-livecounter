@@ -6,54 +6,66 @@
   <title>Mod Download Tracker</title>
   <style>
     body {
-      font-family: 'Courier New', Courier, monospace;
-      background-color: #1d2b3a;
-      color: #c1c1c1;
+      font-family: 'Arial', sans-serif;
+      background-color: #1d1d1d;
+      color: #e0e0e0;
       text-align: center;
-      padding: 20px;
+      padding: 30px;
+      margin: 0;
     }
 
     h1 {
-      font-size: 3em;
-      color: #d0e8f2;
+      font-size: 2.5em;
+      color: #ff9900;
+      margin-bottom: 30px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     }
 
     .mod-card {
-      background-color: #2a3b50;
+      background-color: #2c3e50;
       border-radius: 8px;
       padding: 20px;
-      margin: 15px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      margin: 20px;
       display: inline-block;
       width: 250px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .mod-card:hover {
+      transform: scale(1.05);
     }
 
     .mod-name {
       font-size: 1.5em;
-      color: #8bc9e8;
+      color: #ff9900;
       margin-bottom: 10px;
     }
 
     .mod-downloads {
       font-size: 1.2em;
-      color: #4cd3a3;
+      color: #7f8c8d;
     }
 
     .total-downloads {
       font-size: 2em;
-      margin-top: 30px;
-      color: #ff6f61;
+      margin-top: 40px;
+      color: #e74c3c;
     }
 
     #chart-container {
       margin-top: 40px;
       height: 300px;
+      width: 90%;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     #get-updated {
       margin-top: 20px;
-      background-color: #4cd3a3;
-      padding: 10px 20px;
+      background-color: #1abc9c;
+      padding: 12px 25px;
       color: white;
       font-size: 1.2em;
       border: none;
@@ -63,8 +75,16 @@
     }
 
     #get-updated:hover {
-      background-color: #3bb589;
+      background-color: #16a085;
     }
+
+    .loading-message {
+      color: #f39c12;
+      font-size: 1.2em;
+      margin-top: 20px;
+      font-style: italic;
+    }
+
   </style>
 </head>
 <body>
@@ -90,16 +110,23 @@
 
   <button id="get-updated" onclick="updateData()">Get Latest Data</button>
 
+  <div class="loading-message" id="loading-message">Fetching data... please wait.</div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const modNames = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
     const downloadHistory = {};
-    
+
     function fetchDownloadData() {
       const url = 'https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json';
       
       fetch(url)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Could not fetch data');
+          }
+          return response.json();
+        })
         .then(data => {
           modNames.forEach(mod => {
             const downloads = data[mod] || 0;
@@ -112,10 +139,11 @@
           document.getElementById("total-downloads").textContent = `Total Downloads: ${totalDownloads}`;
           
           generateChart();
+          document.getElementById("loading-message").style.display = 'none'; // Hide loading message when data is fetched
         })
         .catch(error => {
           console.error('Error fetching data:', error);
-          alert('Error fetching mod data.');
+          document.getElementById("loading-message").textContent = 'Error fetching data. Please try again later.';
         });
     }
 
@@ -146,16 +174,19 @@
       };
 
       const chartContainer = document.getElementById("chart-container");
-      chartContainer.innerHTML = '';
+      chartContainer.innerHTML = ''; // Clear previous chart
       new Chart(chartContainer, config);
     }
 
     function updateData() {
+      document.getElementById("loading-message").style.display = 'block'; // Show loading message
       fetchDownloadData();
     }
 
     window.onload = fetchDownloadData;
   </script>
 </body>
+</html>
+
 </html>
 
