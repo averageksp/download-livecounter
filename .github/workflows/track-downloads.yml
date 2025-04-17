@@ -23,16 +23,23 @@ jobs:
         run: |
           MODS=("KerbalChecklists" "WasdMainMenu" "RP-1-Checklists")
           TODAY=$(date +%F)
-          jq -n --arg date "$TODAY" \
-            --argjson source "$(cat download_counts.json)" \
+
+          # Fetch download_counts.json and load it
+          DOWNLOADS_JSON=$(cat download_counts.json)
+
+          # Construct a new entry in JSON format using jq
+          NEW_ENTRY=$(jq -n \
+            --arg date "$TODAY" \
+            --argjson downloads "$DOWNLOADS_JSON" \
             '{
               date: $date
-            } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($source[$mod] // 0)))' > new_entry.json
+            } + (reduce ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"][] as $mod ({}; .[$mod] = ($downloads[$mod] // 0)))')
 
+          # Append the new entry to history.json or create the file
           if [ -f history.json ]; then
-            jq '. + [input]' history.json new_entry.json > combined.json
+            jq --argjson new_entry "$NEW_ENTRY" '. + [$new_entry]' history.json > combined.json
           else
-            jq -n --slurpfile new new_entry.json '$new' > combined.json
+            jq -n --argjson new_entry "$NEW_ENTRY" '[ $new_entry ]' > combined.json
           fi
 
           mv combined.json history.json
