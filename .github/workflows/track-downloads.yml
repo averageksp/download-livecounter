@@ -29,7 +29,6 @@ jobs:
         id: build_entry
         run: |
           TODAY=$(date +%F)
-          # Construct JSON entry; default missing keys to 0
           ENTRY=$(jq -c --arg date "$TODAY" '
             {
               date: $date,
@@ -38,7 +37,6 @@ jobs:
               "RP-1-Checklists": (.["RP-1-Checklists"] // 0)
             }
           ' download_counts.json)
-          # Use the new env‑file syntax instead of deprecated set-output
           echo "entry=$ENTRY" >> $GITHUB_OUTPUT
 
       - name: Ensure history.json exists
@@ -49,9 +47,8 @@ jobs:
 
       - name: Append to history.json
         run: |
-          # Wrap in single quotes so inner quotes survive
-          ENTRY='${{ steps.build_entry.outputs.entry }}'
-          jq --argjson e "$ENTRY" '. + [ $e ]' history.json > tmp.json
+          ENTRY="${{ steps.build_entry.outputs.entry }}"
+          jq --argjson e "$ENTRY" 'if type=="array" then . + [$e] else [$e] end' history.json > tmp.json
           mv tmp.json history.json
 
       - name: Commit & Push history.json
