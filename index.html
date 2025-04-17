@@ -16,6 +16,11 @@
     h1 {
       font-size: 2.5em;
       color: #ff9900;
+      margin-bottom: 10px;
+    }
+    #json-updated {
+      font-size: 0.9em;
+      color: #aaa;
       margin-bottom: 20px;
     }
     .mod-card {
@@ -71,6 +76,7 @@
 </head>
 <body>
   <h1>Mod Download Tracker</h1>
+  <div id="json-updated">JSON last updated: loading…</div>
 
   <div id="mod-cards">
     <div class="mod-card">
@@ -93,7 +99,7 @@
     <canvas id="downloadsChart"></canvas>
   </div>
 
-  <button id="get-updated" onclick="loadHistory()">Refresh Data</button>
+  <button id="get-updated" onclick="refreshAll()">Refresh Data</button>
   <div class="error" id="error-msg" style="display:none;"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -101,16 +107,31 @@
     const mods = ["KerbalChecklists","WasdMainMenu","RP-1-Checklists"];
     let chartInstance = null;
 
+    async function fetchJSONUpdate() {
+      try {
+        const apiUrl = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`API ${res.status}`);
+        const commits = await res.json();
+        const date = new Date(commits[0].commit.committer.date);
+        document.getElementById('json-updated').textContent =
+          'JSON last updated: ' + date.toLocaleString();
+      } catch (err) {
+        console.error('Error fetching JSON update time:', err);
+        document.getElementById('json-updated').textContent =
+          'JSON last updated: unknown';
+      }
+    }
+
     async function loadHistory(){
       document.getElementById('error-msg').style.display='none';
       try {
         const res = await fetch('history.json');
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const history = await res.json();
-        if(!Array.isArray(history) || history.length===0) throw new Error('No history data');
+        if (!Array.isArray(history) || history.length === 0) throw new Error('No history data');
 
-        // Build labels (dates) and datasets
-        const labels = history.map(entry => entry.date);
+        const labels = history.map(e => e.date);
         const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
         const datasets = mods.map((mod,i) => ({
           label: mod,
@@ -120,19 +141,18 @@
           tension: 0.3
         }));
 
-        // Update cards & total
         const latest = history[history.length-1];
         let total = 0;
-        mods.forEach(mod=>{
-          const cnt = latest[mod]||0;
+        mods.forEach(mod => {
+          const cnt = latest[mod] || 0;
           total += cnt;
           document.getElementById(`${mod}-count`).textContent = cnt.toLocaleString();
         });
-        document.getElementById('total-downloads').textContent = `Total: ${total.toLocaleString()}`;
+        document.getElementById('total-downloads').textContent =
+          `Total: ${total.toLocaleString()}`;
 
-        // Render or update chart
         const ctx = document.getElementById('downloadsChart').getContext('2d');
-        if(chartInstance) {
+        if (chartInstance) {
           chartInstance.data.labels = labels;
           chartInstance.data.datasets = datasets;
           chartInstance.update();
@@ -141,16 +161,16 @@
             type: 'line',
             data: { labels, datasets },
             options: {
-              responsive:true,
-              plugins:{ legend:{ labels:{ color:'#c1c1c1' }}},
-              scales:{
-                x:{ ticks:{ color:'#c1c1c1' }, grid:{ color:'#444' } },
-                y:{ ticks:{ color:'#c1c1c1' }, grid:{ color:'#444' }, beginAtZero:true }
+              responsive: true,
+              plugins: { legend: { labels: { color: '#c1c1c1' } } },
+              scales: {
+                x: { ticks: { color: '#c1c1c1' }, grid: { color: '#444' } },
+                y: { ticks: { color: '#c1c1c1' }, grid: { color: '#444' }, beginAtZero: true }
               }
             }
           });
         }
-      } catch(err){
+      } catch(err) {
         console.error(err);
         const e = document.getElementById('error-msg');
         e.textContent = '⚠️ Couldn’t load history.json: '+ err.message;
@@ -158,7 +178,11 @@
       }
     }
 
-    window.onload = loadHistory;
+    async function refreshAll(){
+      await Promise.all([ fetchJSONUpdate(), loadHistory() ]);
+    }
+
+    window.onload = refreshAll;
   </script>
 </body>
 </html>
