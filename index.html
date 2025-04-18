@@ -121,64 +121,85 @@
     }
 
     async function loadHistory() {
-      document.getElementById('error-msg').style.display='none';
+      const errorEl = document.getElementById('error-msg');
+      errorEl.style.display = 'none';
+
+      let text;
       try {
-        const r = await fetch('history.json');
-        if (!r.ok) throw new Error(r.status);
-        const hist = await r.json();
-        if (!Array.isArray(hist) || hist.length===0) throw new Error('no data');
+        // cache‑bust with timestamp
+        const res = await fetch('history.json?t=' + Date.now());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        text = await res.text();
+        if (!text.trim()) text = '[]';
+      } catch (err) {
+        errorEl.textContent = '⚠️ Couldn’t fetch history.json: ' + err.message;
+        errorEl.style.display = 'block';
+        text = '[]';
+      }
 
-        const labels = hist.map(e=>e.date);
-        const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
-        const datasets = mods.map((m,i)=>({
-          label: m,
-          data: hist.map(e=>e[m]||0),
-          borderColor: colors[i],
-          backgroundColor: colors[i]+'33',
-          tension: 0.2,
-          pointRadius: 4
-        }));
+      let history;
+      try {
+        history = JSON.parse(text);
+        if (!Array.isArray(history)) throw new Error('Not an array');
+      } catch (err) {
+        errorEl.textContent = '⚠️ Invalid history.json—resetting to empty.';
+        errorEl.style.display = 'block';
+        history = [];
+      }
 
-        // update cards & total
-        const latest = hist[hist.length-1];
-        let total=0;
-        mods.forEach(m=>{
-          const c=latest[m]||0;
-          total+=c;
-          document.getElementById(m+'-count').textContent = c.toLocaleString();
-        });
-        document.getElementById('total-downloads')
-          .textContent = `Total: ${total.toLocaleString()}`;
+      if (history.length === 0) {
+        errorEl.textContent = 'ℹ️ No history data yet.';
+        errorEl.style.display = 'block';
+      }
 
-        const ctx = document.getElementById('downloadsChart').getContext('2d');
-        if (chartInstance) {
-          chartInstance.data.labels = labels;
-          chartInstance.data.datasets = datasets;
-          chartInstance.update();
-        } else {
-          chartInstance = new Chart(ctx, {
-            type:'line',
-            data:{ labels, datasets },
-            options:{
-              responsive:true,
-              plugins:{
-                legend:{ labels:{ color:'#c1c1c1', font:{size:14} } }
-              },
-              scales:{
-                x:{ ticks:{ color:'#c1c1c1', font:{size:12} }, grid:{ color:'#444' } },
-                y:{ ticks:{ color:'#c1c1c1', font:{size:12} }, grid:{ color:'#444' }, beginAtZero:true }
-              }
+      const labels = history.map(e => e.date);
+      const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
+      const datasets = mods.map((m, i) => ({
+        label: m,
+        data: history.map(e => e[m] || 0),
+        borderColor: colors[i],
+        backgroundColor: colors[i] + '33',
+        tension: 0.2,
+        pointRadius: 4
+      }));
+
+      // Update cards & total
+      const latest = history[history.length - 1] || {};
+      let total = 0;
+      mods.forEach(m => {
+        const cnt = latest[m] || 0;
+        total += cnt;
+        const el = document.getElementById(m + '-count');
+        if (el) el.textContent = cnt.toLocaleString();
+      });
+      document.getElementById('total-downloads')
+        .textContent = `Total: ${total.toLocaleString()}`;
+
+      // Render or update chart
+      const ctx = document.getElementById('downloadsChart').getContext('2d');
+      if (chartInstance) {
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets = datasets;
+        chartInstance.update();
+      } else {
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { labels: { color: '#c1c1c1', font: { size: 14 } } }
+            },
+            scales: {
+              x: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' } },
+              y: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' }, beginAtZero: true }
             }
-          });
-        }
-      } catch(e) {
-        document.getElementById('error-msg').textContent =
-          '⚠️ Couldn’t load history.json: ' + e.message;
-        document.getElementById('error-msg').style.display='block';
+          }
+        });
       }
     }
 
-    async function refreshAll(){
+    async function refreshAll() {
       await Promise.all([fetchJSONUpdated(), loadHistory()]);
     }
 
