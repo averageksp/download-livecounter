@@ -11,6 +11,7 @@ on:
 jobs:
   update-history:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -30,7 +31,7 @@ jobs:
       - name: Read last recorded date
         id: read_last
         run: |
-          LAST=$(jq -r '.[-1].date // ""' history.json)
+          LAST=$(jq -r 'if length>0 then .[-1].date else "" end' history.json)
           echo "LAST_DATE=$LAST" >> $GITHUB_ENV
 
       - name: Read upstream commit date
@@ -41,28 +42,28 @@ jobs:
             | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
           echo "UPSTREAM_DATE=$DATE" >> $GITHUB_ENV
 
-      - name: Skip if up‑to‑date
-        if: ${{ env.UPSTREAM_DATE == env.LAST_DATE }}
+      - name: Skip if scheduled run and up‑to‑date
+        if: ${{ github.event_name != 'workflow_dispatch' && env.UPSTREAM_DATE == env.LAST_DATE }}
         run: |
-          echo "Already have entry for $UPSTREAM_DATE; skipping."
+          echo "No new update (last: $LAST_DATE). Skipping."
           exit 0
 
       - name: Append new entry
         run: |
-          jq --arg date "$UPSTREAM_DATE" --slurpfile d download_counts.json \
-            '. += [ {
-                date:       $date,
-                KerbalChecklists:      ($d[0].KerbalChecklists      // 0),
-                WasdMainMenu:          ($d[0].WasdMainMenu          // 0),
-                "RP-1-Checklists":     ($d[0]["RP-1-Checklists"]     // 0)
-              } ]' \
-            history.json > history.tmp.json
+          jq --arg date "$UPSTREAM_DATE" --slurpfile d download_counts.json '
+            . += [ {
+              date: $date,
+              KerbalChecklists:      ($d[0].KerbalChecklists // 0),
+              WasdMainMenu:          ($d[0].WasdMainMenu // 0),
+              "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0)
+            } ]
+          ' history.json > history.tmp.json
           mv history.tmp.json history.json
 
-      - name: Commit & Push
+      - name: Commit & Push history.json
         uses: EndBug/add-and-commit@v9
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           add: history.json
-          message: >-
+          message: |
             📈 Update download history for ${{ env.UPSTREAM_DATE }}
