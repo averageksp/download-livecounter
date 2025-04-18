@@ -6,41 +6,14 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 12 * * *'
 
 jobs:
   update-history:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Ensure history.json exists
-        run: |
-          if [ ! -f history.json ] || [ ! -s history.json ]; then
-            echo '[]' > history.json
-          fi
-
-      - name: Get last recorded date
-        id: last
-        run: |
-          LAST=$(jq -r '.[-1].date // ""' history.json)
-          echo "last_date=${LAST}" >> $GITHUB_ENV
-
-      - name: Get upstream date
-        id: upstream
-        run: |
-          # Fetch the latest commit date for download_counts.json
-          DATE=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1 \
-            | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
-          echo "upstream_date=${DATE}" >> $GITHUB_ENV
-
-      - name: Skip if no new data
-        if: ${{ env.upstream_date == env.last_date }}
-        run: |
-          echo "No new update (last: ${{ env.last_date }})."
-          exit 0
 
       - name: Fetch download_counts.json
         run: |
@@ -48,25 +21,48 @@ jobs:
             https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
             -o download_counts.json
 
+      - name: Ensure history.json exists
+        run: |
+          if [ ! -f history.json ] || [ ! -s history.json ]; then
+            echo '[]' > history.json
+          fi
+
+      - name: Read last recorded date
+        id: read_last
+        run: |
+          LAST=$(jq -r '.[-1].date // ""' history.json)
+          echo "LAST_DATE=$LAST" >> $GITHUB_ENV
+
+      - name: Read upstream commit date
+        id: read_upstream
+        run: |
+          DATE=$(curl -s \
+            "https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1" \
+            | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
+          echo "UPSTREAM_DATE=$DATE" >> $GITHUB_ENV
+
+      - name: Skip if up‑to‑date
+        if: ${{ env.UPSTREAM_DATE == env.LAST_DATE }}
+        run: |
+          echo "Already have entry for $UPSTREAM_DATE; skipping."
+          exit 0
+
       - name: Append new entry
         run: |
-          TODAY=${{ env.upstream_date }}
-          jq --arg date "$TODAY" --slurpfile d download_counts.json '
-            . += [ {
-              date: $date,
-              KerbalChecklists: ($d[0].KerbalChecklists // 0),
-              WasdMainMenu:    ($d[0].WasdMainMenu    // 0),
-              "RP-1-Checklists": ($d[0]["RP-1-Checklists"] // 0)
-            } ]
-          ' history.json > history.tmp.json
+          jq --arg date "$UPSTREAM_DATE" --slurpfile d download_counts.json \
+            '. += [ {
+                date:       $date,
+                KerbalChecklists:      ($d[0].KerbalChecklists      // 0),
+                WasdMainMenu:          ($d[0].WasdMainMenu          // 0),
+                "RP-1-Checklists":     ($d[0]["RP-1-Checklists"]     // 0)
+              } ]' \
+            history.json > history.tmp.json
           mv history.tmp.json history.json
 
-      - name: Commit & Push history.json
+      - name: Commit & Push
         uses: EndBug/add-and-commit@v9
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           add: history.json
           message: >-
-            📈 Update download history for
-            ${{ env.upstream_date }}
-
+            📈 Update download history for ${{ env.UPSTREAM_DATE }}
