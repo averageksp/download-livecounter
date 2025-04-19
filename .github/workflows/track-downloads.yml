@@ -3,9 +3,8 @@ name: Update Download History
 on:
   workflow_dispatch:
   schedule:
-    - cron: '15 5 * * *'  # 07:15 AM CEST (UTC+2)
-    - cron: '20 5 * * *'  # 07:20 AM CEST (UTC+2)
-    - cron: '30 5 * * *'  # 07:30 AM CEST (UTC+2)
+    - cron: '20 5 * * *'
+    - cron: '30 5 * * *' 
 
 jobs:
   update-history:
