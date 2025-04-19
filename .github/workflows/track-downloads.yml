@@ -3,7 +3,9 @@ name: Update Download History
 on:
   workflow_dispatch:
   schedule:
-    - cron: '20 5 * * *' 
+    - cron: '15 5 * * *'  # 07:15 AM CEST (UTC+2)
+    - cron: '20 5 * * *'  # 07:20 AM CEST (UTC+2)
+    - cron: '30 5 * * *'  # 07:30 AM CEST (UTC+2)
 
 jobs:
   update-history:
@@ -40,8 +42,16 @@ jobs:
           echo "No new update (last: $LAST_DATE). Skipping."
           exit 0
 
-      - name: Append new entry
+      - name: Check for existing date and update history.json
         run: |
+          # Check if the date already exists in the history.json
+          DATE_EXISTS=$(jq --arg date "$UPSTREAM_DATE" 'map(select(.date == $date)) | length > 0' history.json)
+          if [ "$DATE_EXISTS" == "true" ]; then
+            echo "Date $UPSTREAM_DATE already exists in history.json. Skipping update."
+            exit 0
+          fi
+
+          # If the date doesn't exist, append the new entry
           jq --arg date "$UPSTREAM_DATE" --slurpfile d download_counts.json '
             . += [{
               date: $date,
