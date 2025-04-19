@@ -16,11 +16,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Fetch download_counts.json
+      - name: Try to fetch download_counts.json if it exists
         run: |
-          curl -s \
-            https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/6ce43b260868a4bea1bd081b039b7b66c13d06cc/download_counts.json \
-            -o download_counts.json
+          URL="https://api.github.com/repos/KSP-CKAN/CKAN-meta/contents/download_counts.json"
+          DOWNLOAD_URL=$(curl -s $URL | jq -r '.download_url // empty')
+
+          if [ -n "$DOWNLOAD_URL" ]; then
+            echo "Found file at $DOWNLOAD_URL"
+            curl -s "$DOWNLOAD_URL" -o download_counts.json
+          else
+            echo "download_counts.json not found in CKAN-meta"
+            echo '{}' > download_counts.json
+          fi
 
       - name: Ensure history.json exists
         run: |
@@ -67,3 +74,4 @@ jobs:
           add: history.json
           message: |
             📈 Update download history for ${{ env.UPSTREAM_DATE }}
+
