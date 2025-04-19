@@ -1,12 +1,9 @@
-name: 📊 Track Mod Downloads History
-
-permissions:
-  contents: write
+name: Update Download History
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 10 * * *' 
 
 jobs:
   update-history:
@@ -16,36 +13,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Try to fetch download_counts.json if it exists
-        run: |
-          URL="https://api.github.com/repos/KSP-CKAN/CKAN-meta/contents/download_counts.json"
-          DOWNLOAD_URL=$(curl -s $URL | jq -r '.download_url // empty')
-
-          if [ -n "$DOWNLOAD_URL" ]; then
-            echo "Found file at $DOWNLOAD_URL"
-            curl -s "$DOWNLOAD_URL" -o download_counts.json
-          else
-            echo "download_counts.json not found in CKAN-meta"
-            echo '{}' > download_counts.json
-          fi
-
-      - name: Ensure history.json exists
-        run: |
-          if [ ! -f history.json ] || [ ! -s history.json ]; then
-            echo '[]' > history.json
-          fi
+      - name: Download latest download_counts.json
+        run: curl -sSL https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/master/download_counts.json -o download_counts.json
 
       - name: Read last recorded date
         id: read_last
         run: |
-          LAST=$(jq -r 'if length>0 then .[-1].date else "" end' history.json)
+          if [ -f history.json ]; then
+            LAST=$(jq -r 'if length>0 then .[-1].date else "" end' history.json)
+          else
+            echo "[]" > history.json
+            LAST=""
+          fi
           echo "LAST_DATE=$LAST" >> $GITHUB_ENV
 
       - name: Read upstream commit date
-        id: read_upstream
+        id: upstream_commit
         run: |
-          DATE=$(curl -s \
-            "https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1" \
+          DATE=$(curl -s https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json\&per_page=1 \
             | jq -r '.[0].commit.committer.date' | cut -d'T' -f1)
           echo "UPSTREAM_DATE=$DATE" >> $GITHUB_ENV
 
@@ -58,12 +43,12 @@ jobs:
       - name: Append new entry
         run: |
           jq --arg date "$UPSTREAM_DATE" --slurpfile d download_counts.json '
-            . += [ {
+            . += [{
               date: $date,
               KerbalChecklists:      ($d[0].KerbalChecklists // 0),
               WasdMainMenu:          ($d[0].WasdMainMenu // 0),
               "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0)
-            } ]
+            }]
           ' history.json > history.tmp.json
           mv history.tmp.json history.json
 
@@ -74,4 +59,3 @@ jobs:
           add: history.json
           message: |
             📈 Update download history for ${{ env.UPSTREAM_DATE }}
-
