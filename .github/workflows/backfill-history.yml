@@ -1,0 +1,75 @@
+name: 📅 Backfill Download History (Last 30 Days)
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Ensure history.json exists
+        run: |
+          if [ ! -f history.json ] || [ ! -s history.json ]; then
+            echo '[]' > history.json
+          fi
+
+      - name: Compute since timestamp
+        id: since
+        run: |
+          # 30 days ago, ISO8601
+          SINCE=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "SINCE=$SINCE" >> $GITHUB_ENV
+
+      - name: List commits touching download_counts.json
+        id: commits
+        run: |
+          curl -s "https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&since=${SINCE}&per_page=100" \
+            > commits.json
+
+      - name: Backfill each commit
+        run: |
+          # Load existing dates to avoid dupes
+          EXISTING_DATES=$(jq -r '.[].date' history.json || echo "")
+          jq -c '.[] | {sha: .sha, date: (.commit.committer.date | split("T")[0])}' commits.json \
+            | while read commit; do
+              SHA=$(echo "$commit"   | jq -r .sha)
+              DATE=$(echo "$commit"  | jq -r .date)
+              # Skip if we already have it
+              if echo "$EXISTING_DATES" | grep -qx "$DATE"; then
+                echo "↩ skipping $DATE (already in history)"
+                continue
+              fi
+              echo "→ backfilling $DATE (SHA $SHA)"
+              # Download that version of the file
+              curl -s "https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/${SHA}/download_counts.json" \
+                -o temp_counts.json
+              # Append to history.json
+              jq --arg date "$DATE" --slurpfile d temp_counts.json '
+                . += [ {
+                  date: $date,
+                  KerbalChecklists:      ($d[0].KerbalChecklists // 0),
+                  WasdMainMenu:          ($d[0].WasdMainMenu // 0),
+                  "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0)
+                } ]
+              ' history.json > history.tmp.json
+              mv history.tmp.json history.json
+            done
+
+      - name: Sort history by date and dedupe
+        run: |
+          jq 'sort_by(.date) | unique_by(.date)' history.json > history.sorted.json
+          mv history.sorted.json history.json
+
+      - name: Commit & Push updated history.json
+        uses: EndBug/add-and-commit@v9
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          add: history.json
+          message: "🔄 Backfilled history.json for last 30 days"
