@@ -24,7 +24,7 @@ jobs:
         id: since
         run: |
           # 30 days ago, ISO8601
-          SINCE=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          SINCE=$(date -u -d '45 days ago' +%Y-%m-%dT%H:%M:%SZ)
           echo "SINCE=$SINCE" >> $GITHUB_ENV
 
       - name: List commits touching download_counts.json
