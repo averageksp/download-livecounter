@@ -1,4 +1,4 @@
-name: 📅 Backfill Download History (Last 30 Days)
+name: Backfill Download History (Last 30 Days)
 
 permissions:
   contents: write
