@@ -67,4 +67,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           add: history.json
           message: |
-            📈 Update download history for ${{ env.UPSTREAM_DATE }}
+            Update download history for ${{ env.UPSTREAM_DATE }}
