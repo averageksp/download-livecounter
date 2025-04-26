@@ -163,49 +163,36 @@
         pointRadius: 4
       }));
 
-      const latest = history[history.length - 1] || {};
-      let total = 0;
-      mods.forEach(m => {
-      const cnt = latest[m] || 0;
-      total += cnt;
-      const el = document.getElementById(m + '-count');
-      if (el) {
-        let prevCnt = 0;
-        if (history.length >= 2) {
-          const prev = history[history.length - 2];
-          prevCnt = prev[m] || 0;
-        }
-        const diff = cnt - prevCnt;
-        el.innerHTML = `
-          ${cnt.toLocaleString()}<br>
-          <small style="color:${diff >= 0 ? '#4cd3a3' : '#ff6f61'};">
-            ${diff >= 0 ? '+' : ''}${diff.toLocaleString()} today
-          </small>
-        `;
-      }
-    });
-      const ctx = document.getElementById('downloadsChart').getContext('2d');
-      if (chartInstance) {
-        chartInstance.data.labels = labels;
-        chartInstance.data.datasets = datasets;
-        chartInstance.update();
-      } else {
-        chartInstance = new Chart(ctx, {
-          type: 'line',
-          data: { labels, datasets },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { labels: { color: '#c1c1c1', font: { size: 14 } } }
-            },
-            scales: {
-              x: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' } },
-              y: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' }, beginAtZero: true }
-            }
+        const latest = history[history.length - 1] || {};
+        const previous = history.length >= 2 ? history[history.length - 2] : {};
+        let total = 0;
+        let totalPrev = 0;
+
+        mods.forEach(m => {
+          const cnt = latest[m] || 0;
+          const prevCnt = previous[m] || 0;
+          total += cnt;
+          totalPrev += prevCnt;
+          const el = document.getElementById(m + '-count');
+          if (el) {
+            const diff = cnt - prevCnt;
+            el.innerHTML = `
+              ${cnt.toLocaleString()}<br>
+              <small style="color:${diff >= 0 ? '#4cd3a3' : '#ff6f61'};">
+                ${diff >= 0 ? '+' : ''}${diff.toLocaleString()} today
+              </small>
+            `;
           }
         });
-      }
-    }
+
+        // Show total and total gain
+        const totalDiff = total - totalPrev;
+        document.getElementById('total-downloads').innerHTML = `
+          Total: ${total.toLocaleString()}<br>
+          <small style="color:${totalDiff >= 0 ? '#4cd3a3' : '#ff6f61'};">
+            ${totalDiff >= 0 ? '+' : ''}${totalDiff.toLocaleString()} today
+          </small>
+        `;
 
     async function refreshAll() {
       await Promise.all([fetchJSONUpdated(), loadHistory()]);
@@ -215,4 +202,3 @@
   </script>
 </body>
 </html>
-
