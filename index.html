@@ -163,19 +163,27 @@
         pointRadius: 4
       }));
 
-      // Update cards & total
       const latest = history[history.length - 1] || {};
       let total = 0;
       mods.forEach(m => {
-        const cnt = latest[m] || 0;
-        total += cnt;
-        const el = document.getElementById(m + '-count');
-        if (el) el.textContent = cnt.toLocaleString();
-      });
-      document.getElementById('total-downloads')
-        .textContent = `Total: ${total.toLocaleString()}`;
-
-      // Render or update chart
+      const cnt = latest[m] || 0;
+      total += cnt;
+      const el = document.getElementById(m + '-count');
+      if (el) {
+        let prevCnt = 0;
+        if (history.length >= 2) {
+          const prev = history[history.length - 2];
+          prevCnt = prev[m] || 0;
+        }
+        const diff = cnt - prevCnt;
+        el.innerHTML = `
+          ${cnt.toLocaleString()}<br>
+          <small style="color:${diff >= 0 ? '#4cd3a3' : '#ff6f61'};">
+            ${diff >= 0 ? '+' : ''}${diff.toLocaleString()} today
+          </small>
+        `;
+      }
+    });
       const ctx = document.getElementById('downloadsChart').getContext('2d');
       if (chartInstance) {
         chartInstance.data.labels = labels;
