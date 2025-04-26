@@ -107,18 +107,21 @@
     let chartInstance = null;
 
     async function fetchJSONUpdated() {
-      try {
-        const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
-        const r = await fetch(api);
-        const js = await r.json();
-        const d = new Date(js[0].commit.committer.date);
-        document.getElementById('json-updated')
-          .textContent = 'JSON last updated: ' + d.toLocaleString();
-      } catch {
-        document.getElementById('json-updated')
-          .textContent = 'JSON last updated: unknown';
-      }
+    try {
+      const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
+      const r = await fetch(api);
+      const js = await r.json();
+      const d = new Date(js[0].commit.committer.date);
+      const now = new Date();
+      const diffMs = now - d;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      document.getElementById('json-updated')
+        .textContent = `JSON last updated: ${d.toLocaleString()} (${diffHours} hours ago)`;
+    } catch {
+      document.getElementById('json-updated')
+        .textContent = 'JSON last updated: unknown';
     }
+  }
 
     async function loadHistory() {
       const errorEl = document.getElementById('error-msg');
@@ -191,6 +194,28 @@
           ${totalDiff >= 0 ? '+' : ''}${totalDiff.toLocaleString()} today
         </small>
       `;
+
+      if (history.length >= 2) {
+        const lastEntry = history[history.length - 1];
+        const firstEntry = history[0];
+        const daysBetween = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
+        if (daysBetween > 0) {
+          let totalGain = 0;
+          mods.forEach(m => {
+            const first = firstEntry[m] || 0;
+            const last = lastEntry[m] || 0;
+            totalGain += (last - first);
+          });
+          const avgPerDay = totalGain / daysBetween;
+          const estMonth = Math.round(avgPerDay * 30);
+          
+          const totalDownloadsDiv = document.getElementById('total-downloads');
+          totalDownloadsDiv.innerHTML += `
+            <br><small style="color:#8bc9e8;">Estimated ~${estMonth.toLocaleString()} downloads/month</small>
+          `;
+        }
+      }
+
 
       const ctx = document.getElementById('downloadsChart').getContext('2d');
       if (chartInstance) {
