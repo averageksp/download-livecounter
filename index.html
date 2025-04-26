@@ -42,7 +42,11 @@
     .mod-estimation {
       font-size: 1.2em;
       color: #ff9900;
-      display: none; /* Hidden by default */
+      display: none; 
+    }
+    .mod-daily-change {
+      font-size: 1em;
+      color: #ff6f61;
     }
     .total-downloads {
       font-size: 2em;
@@ -52,7 +56,7 @@
     .total-estimation {
       font-size: 1.2em;
       color: #ff9900;
-      display: none; /* Hidden by default */
+      display: none; 
     }
     #chart-container {
       max-width: 1000px;
@@ -104,16 +108,19 @@
     <div class="mod-card">
       <div class="mod-name">Kerbal Checklists</div>
       <div class="mod-downloads" id="KerbalChecklists-count">–</div>
+      <div class="mod-daily-change" id="KerbalChecklists-daily-change">+0 today</div>
       <div class="mod-estimation" id="KerbalChecklists-estimation">Estimation: –</div>
     </div>
     <div class="mod-card">
       <div class="mod-name">WASD Main Menu</div>
       <div class="mod-downloads" id="WasdMainMenu-count">–</div>
+      <div class="mod-daily-change" id="WasdMainMenu-daily-change">+0 today</div>
       <div class="mod-estimation" id="WasdMainMenu-estimation">Estimation: –</div>
     </div>
     <div class="mod-card">
       <div class="mod-name">RP‑1 Checklists</div>
       <div class="mod-downloads" id="RP-1-Checklists-count">–</div>
+      <div class="mod-daily-change" id="RP-1-Checklists-daily-change">+0 today</div>
       <div class="mod-estimation" id="RP-1-Checklists-estimation">Estimation: –</div>
     </div>
   </div>
@@ -126,7 +133,7 @@
   </div>
 
   <button id="get-updated" onclick="refreshAll()">Refresh Data</button>
-  <button id="get-estimates" onclick="calculateEstimates()">Calculate Estimates</button>
+  <button id="get-estimates" onclick="toggleEstimates()">Calculate/Hide Estimates</button>
   <div class="error" id="error-msg" style="display:none;"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -192,15 +199,33 @@
       }));
 
       const latest = history[history.length - 1] || {};
+      const previous = history.length >= 2 ? history[history.length - 2] : {};
       let total = 0;
+      let totalPrev = 0;
+
       mods.forEach(m => {
         const cnt = latest[m] || 0;
+        const prevCnt = previous[m] || 0;
         total += cnt;
-        const el = document.getElementById(m + '-count');
-        if (el) el.textContent = cnt.toLocaleString();
-      });
-      document.getElementById('total-downloads').textContent = `Total: ${total.toLocaleString()}`;
+        totalPrev += prevCnt;
 
+        const el = document.getElementById(m + '-count');
+        const dailyChange = cnt - prevCnt;
+        if (el) el.textContent = cnt.toLocaleString();
+        const dailyChangeEl = document.getElementById(m + '-daily-change');
+        if (dailyChangeEl) dailyChangeEl.textContent = `+${dailyChange.toLocaleString()} today`;
+
+        const estimationEl = document.getElementById(m + '-estimation');
+        if (estimationEl) {
+          const dailyEstimate = (dailyChange || 0) * 30; 
+          estimationEl.textContent = `Estimation: Daily: ${dailyChange.toLocaleString()} | Monthly: ${dailyEstimate.toLocaleString()}`;
+        }
+      });
+
+      const totalDailyChange = total - totalPrev;
+      document.getElementById('total-downloads').textContent = `Total: ${total.toLocaleString()}`;
+      document.getElementById('total-estimation').textContent = `Total Estimation: Daily: ${totalDailyChange.toLocaleString()} | Monthly: ${(totalDailyChange * 30).toLocaleString()}`;
+      
       const ctx = document.getElementById('downloadsChart').getContext('2d');
       if (chartInstance) {
         chartInstance.data.labels = labels;
@@ -216,8 +241,12 @@
               legend: { labels: { color: '#c1c1c1', font: { size: 14 } } }
             },
             scales: {
-              x: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' } },
-              y: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' }, beginAtZero: true }
+              x: {
+                ticks: { color: '#c1c1c1', font: { size: 12 } }
+              },
+              y: {
+                ticks: { color: '#c1c1c1', font: { size: 12 } }
+              }
             }
           }
         });
@@ -228,32 +257,26 @@
       await Promise.all([fetchJSONUpdated(), loadHistory()]);
     }
 
-    function calculateEstimates() {
-      if (!historyData.length) return;
-
-      mods.forEach(mod => {
-        const latest = historyData[historyData.length - 1][mod];
-        const previous = historyData.length >= 2 ? historyData[historyData.length - 2][mod] : 0;
-
-        const dailyAvg = latest ? latest / (historyData.length || 1) : 0;
-        const monthlyEstimate = dailyAvg * 30;
-
-        document.getElementById(mod + '-estimation').textContent = `
-          Estimation: Daily: ${dailyAvg.toFixed(0)} | Monthly: ${monthlyEstimate.toFixed(0)}
-        `;
-        document.getElementById(mod + '-estimation').style.display = 'block';
-      });
-
-      const totalLatest = mods.reduce((total, mod) => total + (historyData[historyData.length - 1][mod] || 0), 0);
-      const totalPrev = mods.reduce((total, mod) => total + (historyData[historyData.length - 2] && historyData[historyData.length - 2][mod] || 0), 0);
-      const totalDailyAvg = totalLatest ? totalLatest / (historyData.length || 1) : 0;
-      const totalMonthlyEstimate = totalDailyAvg * 30;
-
-      document.getElementById('total-estimation').textContent = `
-        Total Estimation: Daily: ${totalDailyAvg.toFixed(0)} | Monthly: ${totalMonthlyEstimate.toFixed(0)}
-      `;
-      document.getElementById('total-estimation').style.display = 'block';
+    function toggleEstimates() {
+      const button = document.getElementById('get-estimates');
+      const isHidden = document.getElementById('KerbalChecklists-estimation').style.display === 'none';
+      
+      if (isHidden) {
+        mods.forEach(mod => {
+          document.getElementById(mod + '-estimation').style.display = 'block';
+        });
+        document.getElementById('total-estimation').style.display = 'block';
+        button.textContent = 'Hide Estimates';
+      } else {
+        mods.forEach(mod => {
+          document.getElementById(mod + '-estimation').style.display = 'none';
+        });
+        document.getElementById('total-estimation').style.display = 'none';
+        button.textContent = 'Calculate/Hide Estimates';
+      }
     }
+
+    window.onload = refreshAll;
   </script>
 </body>
 </html>
