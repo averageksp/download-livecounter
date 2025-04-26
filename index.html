@@ -39,6 +39,11 @@
       font-size: 1.2em;
       color: #4cd3a3;
     }
+    .mod-estimation {
+      font-size: 1em;
+      color: #f39c12;
+      margin-top: 10px;
+    }
     .total-downloads {
       font-size: 2em;
       margin-top: 30px;
@@ -58,7 +63,7 @@
       font-style: italic;
       margin-top: 20px;
     }
-    #get-updated {
+    #get-updated, #get-estimates {
       margin-top: 20px;
       background-color: #1abc9c;
       color: white;
@@ -68,7 +73,7 @@
       cursor: pointer;
       font-size: 1.1em;
     }
-    #get-updated:hover {
+    #get-updated:hover, #get-estimates:hover {
       background-color: #16a085;
     }
   </style>
@@ -81,30 +86,36 @@
     <div class="mod-card">
       <div class="mod-name">Kerbal Checklists</div>
       <div class="mod-downloads" id="KerbalChecklists-count">–</div>
+      <div class="mod-estimation" id="KerbalChecklists-estimation">Estimation: –</div>
     </div>
     <div class="mod-card">
       <div class="mod-name">WASD Main Menu</div>
       <div class="mod-downloads" id="WasdMainMenu-count">–</div>
+      <div class="mod-estimation" id="WasdMainMenu-estimation">Estimation: –</div>
     </div>
     <div class="mod-card">
       <div class="mod-name">RP‑1 Checklists</div>
       <div class="mod-downloads" id="RP-1-Checklists-count">–</div>
+      <div class="mod-estimation" id="RP-1-Checklists-estimation">Estimation: –</div>
     </div>
   </div>
 
   <div class="total-downloads" id="total-downloads">Total: –</div>
+  <div class="total-downloads" id="total-estimation">Total Estimation: –</div>
 
   <div id="chart-container">
     <canvas id="downloadsChart" width="1000" height="400"></canvas>
   </div>
 
   <button id="get-updated" onclick="refreshAll()">Refresh Data</button>
+  <button id="get-estimates" onclick="calculateEstimates()">Calculate Estimates</button>
   <div class="error" id="error-msg" style="display:none;"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const mods = ["KerbalChecklists","WasdMainMenu","RP-1-Checklists"];
+    const mods = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
     let chartInstance = null;
+    let historyData = [];
 
     async function fetchJSONUpdated() {
       try {
@@ -146,74 +157,41 @@
         history = [];
       }
 
-      if (history.length === 0) {
-        errorEl.textContent = 'ℹ️ No history data yet.';
-        errorEl.style.display = 'block';
-      }
+      historyData = history;
 
-      const labels = history.map(e => e.date);
-      const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
-      const datasets = mods.map((m, i) => ({
-        label: m,
-        data: history.map(e => e[m] || 0),
-        borderColor: colors[i],
-        backgroundColor: colors[i] + '33',
-        tension: 0.2,
-        pointRadius: 4
-      }));
+      return history;
+    }
 
-      let total = 0;
-      let totalPrev = 0;
-      mods.forEach(m => {
-        const cnt = history[history.length - 1][m] || 0;
-        const prevCnt = history.length >= 2 ? history[history.length - 2][m] || 0 : 0;
-        total += cnt;
-        totalPrev += prevCnt;
-        const el = document.getElementById(m + '-count');
-        if (el) {
-          const diff = cnt - prevCnt;
-          el.innerHTML = `
-            ${cnt.toLocaleString()}<br>
-            <small style="color:${diff >= 0 ? '#4cd3a3' : '#ff6f61'};">
-              ${diff >= 0 ? '+' : ''}${diff.toLocaleString()} today
-            </small>
-          `;
-        }
+    function calculateEstimates() {
+      if (!historyData.length) return;
+
+      mods.forEach(mod => {
+        const latest = historyData[historyData.length - 1][mod];
+        const previous = historyData.length >= 2 ? historyData[historyData.length - 2][mod] : 0;
+
+        const dailyAvg = latest ? latest / (historyData.length || 1) : 0;
+        const monthlyEstimate = dailyAvg * 30;
+        const dailyGain = latest - previous;
+
+        document.getElementById(mod + '-estimation').textContent = `
+          Estimation: Daily: ${dailyAvg.toFixed(0)} | Monthly: ${monthlyEstimate.toFixed(0)}
+        `;
       });
 
-      const totalDiff = total - totalPrev;
-      document.getElementById('total-downloads').innerHTML = `
-        Total: ${total.toLocaleString()}<br>
-        <small style="color:${totalDiff >= 0 ? '#4cd3a3' : '#ff6f61'};">
-          ${totalDiff >= 0 ? '+' : ''}${totalDiff.toLocaleString()} today
-        </small>
-      `;
+      const totalLatest = mods.reduce((total, mod) => total + (historyData[historyData.length - 1][mod] || 0), 0);
+      const totalPrev = mods.reduce((total, mod) => total + (historyData[historyData.length - 2] && historyData[historyData.length - 2][mod] || 0), 0);
+      const totalDailyAvg = totalLatest ? totalLatest / (historyData.length || 1) : 0;
+      const totalMonthlyEstimate = totalDailyAvg * 30;
+      const totalDailyGain = totalLatest - totalPrev;
 
-      const ctx = document.getElementById('downloadsChart').getContext('2d');
-      if (chartInstance) {
-        chartInstance.data.labels = labels;
-        chartInstance.data.datasets = datasets;
-        chartInstance.update();
-      } else {
-        chartInstance = new Chart(ctx, {
-          type: 'line',
-          data: { labels, datasets },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { labels: { color: '#c1c1c1', font: { size: 14 } } }
-            },
-            scales: {
-              x: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' } },
-              y: { ticks: { color: '#c1c1c1', font: { size: 12 } }, grid: { color: '#444' }, beginAtZero: true }
-            }
-          }
-        });
-      }
+      document.getElementById('total-estimation').textContent = `
+        Total Estimation: Daily: ${totalDailyAvg.toFixed(0)} | Monthly: ${totalMonthlyEstimate.toFixed(0)}
+      `;
     }
 
     async function refreshAll() {
       await Promise.all([fetchJSONUpdated(), loadHistory()]);
+      calculateEstimates(); 
     }
 
     window.onload = refreshAll;
