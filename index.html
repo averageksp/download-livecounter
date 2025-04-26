@@ -187,6 +187,21 @@
         }
       });
 
+      if (history.length >= 2) {
+      const first = history[0][m] || 0;
+      const last = latest[m] || 0;
+      const daysBetween = (new Date(latest.date) - new Date(history[0].date)) / (1000 * 60 * 60 * 24);
+      if (daysBetween > 0) {
+        const avgPerDay = (last - first) / daysBetween;
+        const estMonth = Math.round(avgPerDay * 30);
+
+        el.innerHTML += `
+          <br><small style="color:#8bc9e8;">~${estMonth.toLocaleString()}/month</small>
+          <br><small style="color:#aaa;">~${avgPerDay.toFixed(1)}/day</small>
+        `;
+      }
+    }
+
       const totalDiff = total - totalPrev;
       document.getElementById('total-downloads').innerHTML = `
         Total: ${total.toLocaleString()}<br>
@@ -196,25 +211,20 @@
       `;
 
       if (history.length >= 2) {
-        const lastEntry = history[history.length - 1];
-        const firstEntry = history[0];
-        const daysBetween = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
-        if (daysBetween > 0) {
-          let totalGain = 0;
-          mods.forEach(m => {
-            const first = firstEntry[m] || 0;
-            const last = lastEntry[m] || 0;
-            totalGain += (last - first);
-          });
-          const avgPerDay = totalGain / daysBetween;
-          const estMonth = Math.round(avgPerDay * 30);
-          
-          const totalDownloadsDiv = document.getElementById('total-downloads');
-          totalDownloadsDiv.innerHTML += `
-            <br><small style="color:#8bc9e8;">Estimated ~${estMonth.toLocaleString()} downloads/month</small>
-          `;
-        }
+      const firstTotals = mods.map(m => history[0][m] || 0).reduce((a, b) => a + b, 0);
+      const lastTotals = mods.map(m => latest[m] || 0).reduce((a, b) => a + b, 0);
+      const daysBetween = (new Date(latest.date) - new Date(history[0].date)) / (1000 * 60 * 60 * 24);
+      if (daysBetween > 0) {
+        const avgTotalPerDay = (lastTotals - firstTotals) / daysBetween;
+        const estTotalMonth = Math.round(avgTotalPerDay * 30);
+
+        document.getElementById('total-downloads').innerHTML += `
+          <br><small style="color:#8bc9e8;">~${estTotalMonth.toLocaleString()}/month</small>
+          <br><small style="color:#aaa;">~${avgTotalPerDay.toFixed(1)}/day</small>
+        `;
       }
+    }
+
 
 
       const ctx = document.getElementById('downloadsChart').getContext('2d');
