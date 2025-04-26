@@ -107,21 +107,18 @@
     let chartInstance = null;
 
     async function fetchJSONUpdated() {
-    try {
-      const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
-      const r = await fetch(api);
-      const js = await r.json();
-      const d = new Date(js[0].commit.committer.date);
-      const now = new Date();
-      const diffMs = now - d;
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      document.getElementById('json-updated')
-        .textContent = `JSON last updated: ${d.toLocaleString()} (${diffHours} hours ago)`;
-    } catch {
-      document.getElementById('json-updated')
-        .textContent = 'JSON last updated: unknown';
+      try {
+        const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
+        const r = await fetch(api);
+        const js = await r.json();
+        const d = new Date(js[0].commit.committer.date);
+        document.getElementById('json-updated')
+          .textContent = 'JSON last updated: ' + d.toLocaleString();
+      } catch {
+        document.getElementById('json-updated')
+          .textContent = 'JSON last updated: unknown';
+      }
     }
-  }
 
     async function loadHistory() {
       const errorEl = document.getElementById('error-msg');
@@ -155,7 +152,7 @@
       }
 
       const labels = history.map(e => e.date);
-      const colors = ['#4cd3a3', '#8bc9e8', '#ff6f61'];
+      const colors = ['#4cd3a3','#8bc9e8','#ff6f61'];
       const datasets = mods.map((m, i) => ({
         label: m,
         data: history.map(e => e[m] || 0),
@@ -165,14 +162,11 @@
         pointRadius: 4
       }));
 
-      const latest = history[history.length - 1] || {};
-      const previous = history.length >= 2 ? history[history.length - 2] : {};
       let total = 0;
       let totalPrev = 0;
-
       mods.forEach(m => {
-        const cnt = latest[m] || 0;
-        const prevCnt = previous[m] || 0;
+        const cnt = history[history.length - 1][m] || 0;
+        const prevCnt = history.length >= 2 ? history[history.length - 2][m] || 0 : 0;
         total += cnt;
         totalPrev += prevCnt;
         const el = document.getElementById(m + '-count');
@@ -187,21 +181,6 @@
         }
       });
 
-      if (history.length >= 2) {
-      const first = history[0][m] || 0;
-      const last = latest[m] || 0;
-      const daysBetween = (new Date(latest.date) - new Date(history[0].date)) / (1000 * 60 * 60 * 24);
-      if (daysBetween > 0) {
-        const avgPerDay = (last - first) / daysBetween;
-        const estMonth = Math.round(avgPerDay * 30);
-
-        el.innerHTML += `
-          <br><small style="color:#8bc9e8;">~${estMonth.toLocaleString()}/month</small>
-          <br><small style="color:#aaa;">~${avgPerDay.toFixed(1)}/day</small>
-        `;
-      }
-    }
-
       const totalDiff = total - totalPrev;
       document.getElementById('total-downloads').innerHTML = `
         Total: ${total.toLocaleString()}<br>
@@ -209,23 +188,6 @@
           ${totalDiff >= 0 ? '+' : ''}${totalDiff.toLocaleString()} today
         </small>
       `;
-
-      if (history.length >= 2) {
-      const firstTotals = mods.map(m => history[0][m] || 0).reduce((a, b) => a + b, 0);
-      const lastTotals = mods.map(m => latest[m] || 0).reduce((a, b) => a + b, 0);
-      const daysBetween = (new Date(latest.date) - new Date(history[0].date)) / (1000 * 60 * 60 * 24);
-      if (daysBetween > 0) {
-        const avgTotalPerDay = (lastTotals - firstTotals) / daysBetween;
-        const estTotalMonth = Math.round(avgTotalPerDay * 30);
-
-        document.getElementById('total-downloads').innerHTML += `
-          <br><small style="color:#8bc9e8;">~${estTotalMonth.toLocaleString()}/month</small>
-          <br><small style="color:#aaa;">~${avgTotalPerDay.toFixed(1)}/day</small>
-        `;
-      }
-    }
-
-
 
       const ctx = document.getElementById('downloadsChart').getContext('2d');
       if (chartInstance) {
@@ -248,7 +210,7 @@
           }
         });
       }
-    } 
+    }
 
     async function refreshAll() {
       await Promise.all([fetchJSONUpdated(), loadHistory()]);
