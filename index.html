@@ -112,6 +112,12 @@
       <div class="mod-estimation" id="KerbalChecklists-estimation">Estimation: –</div>
     </div>
     <div class="mod-card">
+      <div class="mod-name">Kerbalism Checklist</div>
+      <div class="mod-downloads" id="KerbalismChecklist-count">–</div>
+      <div class="mod-daily-change" id="KerbalismChecklist-daily-change">+0 today</div>
+      <div class="mod-estimation" id="KerbalismChecklist-estimation">Estimation: –</div>
+    </div>
+    <div class="mod-card">
       <div class="mod-name">WASD Main Menu</div>
       <div class="mod-downloads" id="WasdMainMenu-count">–</div>
       <div class="mod-daily-change" id="WasdMainMenu-daily-change">+0 today</div>
@@ -138,26 +144,26 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const mods = ["KerbalChecklists", "WasdMainMenu", "RP-1-Checklists"];
+    const mods = ["KerbalChecklists", "KerbalismChecklist", "WasdMainMenu", "RP-1-Checklists"];
     let chartInstance = null;
     let historyData = [];
 
     async function fetchJSONUpdated() {
-    try {
-      const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
-      const r = await fetch(api);
-      if (!r.ok) throw new Error(`HTTP error! Status: ${r.status}`);
-      
-      const js = await r.json();
-      if (js.length === 0) throw new Error('No commits found for download_counts.json');
-      
-      const d = new Date(js[0].commit.committer.date);
-      document.getElementById('json-updated').textContent = 'JSON last updated: ' + d.toLocaleString();
-    } catch (error) {
-      console.error('Error fetching or parsing JSON update time:', error);
-      document.getElementById('json-updated').textContent = 'JSON last updated: unknown';
+      try {
+        const api = 'https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&per_page=1';
+        const r = await fetch(api);
+        if (!r.ok) throw new Error(`HTTP error! Status: ${r.status}`);
+        
+        const js = await r.json();
+        if (js.length === 0) throw new Error('No commits found for download_counts.json');
+        
+        const d = new Date(js[0].commit.committer.date);
+        document.getElementById('json-updated').textContent = 'JSON last updated: ' + d.toLocaleString();
+      } catch (error) {
+        console.error('Error fetching or parsing JSON update time:', error);
+        document.getElementById('json-updated').textContent = 'JSON last updated: unknown';
+      }
     }
-  }
 
     async function loadHistory() {
       const errorEl = document.getElementById('error-msg');
@@ -193,7 +199,7 @@
       historyData = history;
 
       const labels = history.map(e => e.date);
-      const colors = ['#4cd3a3', '#8bc9e8', '#ff6f61'];
+      const colors = ['#4cd3a3', '#8bc9e8', '#ff6f61', '#ff9900'];
       const datasets = mods.map((m, i) => ({
         label: m,
         data: history.map(e => e[m] || 0),
@@ -247,10 +253,12 @@
             },
             scales: {
               x: {
-                ticks: { color: '#c1c1c1', font: { size: 12 } }
+                ticks: { color: '#c1c1c1' },
+                grid: { color: '#4f5b6b' }
               },
               y: {
-                ticks: { color: '#c1c1c1', font: { size: 12 } }
+                ticks: { color: '#c1c1c1' },
+                grid: { color: '#4f5b6b' }
               }
             }
           }
@@ -258,30 +266,27 @@
       }
     }
 
-    async function refreshAll() {
-      await Promise.all([fetchJSONUpdated(), loadHistory()]);
+    function refreshAll() {
+      loadHistory();
+      fetchJSONUpdated();
     }
 
     function toggleEstimates() {
-      const button = document.getElementById('get-estimates');
-      const isHidden = document.getElementById('KerbalChecklists-estimation').style.display === 'none';
-      
-      if (isHidden) {
-        mods.forEach(mod => {
-          document.getElementById(mod + '-estimation').style.display = 'block';
-        });
-        document.getElementById('total-estimation').style.display = 'block';
-        button.textContent = 'Hide Estimates';
-      } else {
-        mods.forEach(mod => {
-          document.getElementById(mod + '-estimation').style.display = 'none';
-        });
-        document.getElementById('total-estimation').style.display = 'none';
-        button.textContent = 'Show Estimates';
+      mods.forEach(m => {
+        const el = document.getElementById(m + '-estimation');
+        if (el) el.style.display = (el.style.display === 'none' ? 'block' : 'none');
+      });
+
+      const totalEstimationEl = document.getElementById('total-estimation');
+      if (totalEstimationEl) {
+        totalEstimationEl.style.display = (totalEstimationEl.style.display === 'none' ? 'block' : 'none');
       }
     }
 
-    window.onload = refreshAll;
+    window.addEventListener('load', () => {
+      fetchJSONUpdated();
+      loadHistory();
+    });
   </script>
 </body>
 </html>
