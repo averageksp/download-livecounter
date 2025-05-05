@@ -1,0 +1,84 @@
+name: Add Mod to history.json
+
+on:
+  workflow_dispatch:
+    inputs:
+      mod_name:
+        description: "Exact mod name as used in download_counts.json"
+        required: true
+        type: string
+
+jobs:
+  add-mod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Ensure history.json exists
+        run: |
+          if [ ! -f history.json ] || [ ! -s history.json ]; then
+            echo '[]' > history.json
+          fi
+
+      - name: Compute since timestamp (60 days ago)
+        run: |
+          SINCE=$(date -u -d '60 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "SINCE=$SINCE" >> $GITHUB_ENV
+
+      - name: Get commits that touched download_counts.json
+        run: |
+          curl -s "https://api.github.com/repos/KSP-CKAN/CKAN-meta/commits?path=download_counts.json&since=${SINCE}&per_page=100" \
+            > commits.json
+
+      - name: Backfill mod "${{ github.event.inputs.mod_name }}"
+        run: |
+          MOD="${{ github.event.inputs.mod_name }}"
+          EXISTING_DATES=$(jq -r '.[].date' history.json || echo "")
+
+          jq -c '.[] | {sha: .sha, date: (.commit.committer.date | split("T")[0])}' commits.json \
+            | while read commit; do
+              SHA=$(echo "$commit" | jq -r .sha)
+              DATE=$(echo "$commit" | jq -r .date)
+
+              if echo "$EXISTING_DATES" | grep -qx "$DATE"; then
+                echo "↩ skipping $DATE (already in history)"
+                continue
+              fi
+
+              echo "→ adding $MOD for $DATE"
+              curl -s "https://raw.githubusercontent.com/KSP-CKAN/CKAN-meta/${SHA}/download_counts.json" \
+                -o temp_counts.json
+
+              COUNT=$(jq -r --arg m "$MOD" '.[$m] // 0' temp_counts.json)
+
+              jq --arg date "$DATE" --arg mod "$MOD" --argjson count "$COUNT" '
+                . += [ { date: $date, ($mod): $count } ]
+              ' history.json > history.tmp.json
+              mv history.tmp.json history.json
+            done
+
+      - name: Merge mod into existing history entries
+        run: |
+          MOD="${{ github.event.inputs.mod_name }}"
+          UPDATED=$(mktemp)
+          jq -s --arg mod "$MOD" '
+            reduce .[1][] as $entry (
+              .[0];
+              .[] += { ($mod): ($entry[$mod] // 0) }
+            )
+          ' history.json history.json > "$UPDATED"
+          mv "$UPDATED" history.json
+
+      - name: Sort & deduplicate history.json
+        run: |
+          jq 'sort_by(.date) | unique_by(.date)' history.json > history.sorted.json
+          mv history.sorted.json history.json
+
+      - name: Commit & Push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          add: history.json
+          message: "➕ Added mod '${{ github.event.inputs.mod_name }}' to history.json"
