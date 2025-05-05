@@ -23,7 +23,6 @@ jobs:
       - name: Compute since timestamp
         id: since
         run: |
-          # 30 days ago, ISO8601
           SINCE=$(date -u -d '45 days ago' +%Y-%m-%dT%H:%M:%SZ)
           echo "SINCE=$SINCE" >> $GITHUB_ENV
 
@@ -56,7 +55,8 @@ jobs:
                   date: $date,
                   KerbalChecklists:      ($d[0].KerbalChecklists // 0),
                   WasdMainMenu:          ($d[0].WasdMainMenu // 0),
-                  "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0)
+                  "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0),
+                  KerbalismChecklist:    ($d[0].KerbalismChecklist // 0)  # Added Kerbalism Checklist
                 } ]
               ' history.json > history.tmp.json
               mv history.tmp.json history.json
@@ -72,4 +72,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           add: history.json
-          message: "🔄 Backfilled history.json for last 30 days"
+          message: "Backfilled history.json for last 45 days"
