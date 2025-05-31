@@ -57,7 +57,7 @@ jobs:
               KerbalChecklists:      ($d[0].KerbalChecklists // 0),
               WasdMainMenu:          ($d[0].WasdMainMenu // 0),
               "RP-1-Checklists":     ($d[0]["RP-1-Checklists"] // 0),
-              KerbalismChecklist:    ($d[0].KerbalismChecklist // 0)
+              KerbalismChecklist:    ($d[0].KerbalismChecklist // 0),
               LanguageChanger:    ($d[0].LanguageChanger // 0)
             }]
           ' history.json > history.tmp.json
